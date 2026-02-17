@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const services = [\n  { name: 'Ollama', url: 'http://ollama:11434/api/tags' },\n  { name: 'Qdrant', url: 'http://qdrant:6333/healthz' },\n  { name: 'HeadTTS', url: 'http://headtts:3001/health' },\n  { name: 'Chat Bridge', url: 'http://chat-bridge:4000/health' },\n  { name: 'Compositor', url: 'http://stream-compositor:5000/health' },\n];\n\nconst results = [];\n\nfor (const svc of services) {\n  try {\n    const res = await this.helpers.httpRequest({ url: svc.url, timeout: 5000 });\n    results.push({ name: svc.name, status: 'UP', details: res });\n  } catch (err) {\n    results.push({ name: svc.name, status: 'DOWN', error: err.message });\n  }\n}\n\nconst downServices = results.filter(r => r.status === 'DOWN');\n\nreturn [{ json: { results, downServices, allHealthy: downServices.length === 0 } }];"
+        "jsCode": "const services = [\n  { name: 'Ollama', url: 'http://ollama:11434/api/tags' },\n  { name: 'Qdrant', url: 'http://qdrant:6333/healthz' },\n  { name: 'HeadTTS', url: 'http://headtts:8882' },\n  { name: 'Chat Bridge', url: 'http://chat-bridge:4000/health' },\n  { name: 'Compositor', url: 'http://stream-compositor:5000/health' },\n];\n\nconst results = [];\n\nfor (const svc of services) {\n  try {\n    const res = await this.helpers.httpRequest({ url: svc.url, timeout: 5000 });\n    results.push({ name: svc.name, status: 'UP', details: res });\n  } catch (err) {\n    results.push({ name: svc.name, status: 'DOWN', error: err.message });\n  }\n}\n\nconst downServices = results.filter(r => r.status === 'DOWN');\n\nreturn [{ json: { results, downServices, allHealthy: downServices.length === 0 } }];"
       },
       "name": "Check All Services",
       "type": "n8n-nodes-base.code",

@@ -194,7 +194,7 @@ cmd_health() {
 
   check "Ollama"           "http://localhost:11434/api/tags"
   check "Qdrant"           "http://localhost:6333/healthz"
-  check "HeadTTS"          "http://localhost:3001/health"
+  check "HeadTTS"          "http://localhost:8882"
   check "Chat Bridge"      "http://localhost:4000/health"
   check "Stream Compositor" "http://localhost:5000/health"
   check "MediaMTX"         "http://localhost:9997/v3/paths/list"

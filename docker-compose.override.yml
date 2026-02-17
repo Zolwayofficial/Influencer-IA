@@ -29,8 +29,7 @@
 #
 #   headtts:
 #     ports:
-#       - "3001:3001"   # HeadTTS directo
-#       - "3002:3002"   # HeadTTS REST
+#       - "8882:8882"   # HeadTTS (WebSocket + REST)
 #
 #   chat-bridge:
 #     ports:
