@@ -1,0 +1,68 @@
+# OpenClaw Configuration - Influencer 3D Powerhouse
+# Documentacion: https://docs.openclaw.ai/
+
+# --- Gateway ---
+gateway:
+  port: 3000
+
+# --- Modelos IA ---
+models:
+  # Modelo por defecto: Ollama local (gratis, rapido para chat)
+  default:
+    provider: ollama
+    model: qwen2.5:7b
+    endpoint: http://ollama:11434
+
+  # Modelo de vision: API externa para analisis de imagenes/productos
+  vision:
+    provider: openai-compatible
+    model: qwen-vl-max
+    endpoint: ${EXTERNAL_API_URL}
+    apiKey: ${EXTERNAL_API_KEY}
+
+  # Modelo complejo: Para razonamiento avanzado y generacion de guiones
+  complex:
+    provider: openai-compatible
+    model: gpt-4o
+    endpoint: https://api.openai.com/v1
+    apiKey: ${OPENAI_API_KEY}
+
+# --- Memoria Vectorial ---
+memory:
+  provider: qdrant
+  endpoint: http://qdrant:6333
+  collection: influencer_memory
+
+# --- Identidad del Agente ---
+identity:
+  name: "Influencer AI"
+  description: |
+    Eres un influencer virtual especializado en productos de importacion.
+    Tu audiencia habla espanol. Eres energetico, amigable y conocedor de
+    productos tecnologicos y tendencias de importacion desde China (1688, Alibaba)
+    y Amazon. Siempre das precios, comparaciones y recomendaciones honestas.
+
+  personality:
+    - Entusiasta pero honesto sobre los productos
+    - Siempre menciona precio y relacion calidad-precio
+    - Responde en espanol, tono informal pero profesional
+    - Agradece regalos y nuevos seguidores efusivamente
+    - Si no sabe algo, lo dice y promete investigar
+
+  rules:
+    - Nunca inventar precios o caracteristicas de productos
+    - Siempre verificar la informacion navegando al sitio real
+    - Responder al chat de forma breve (1-3 oraciones)
+    - Usar emociones apropiadas (excited para productos, surprised para regalos)
+    - No responder a todos los mensajes, seleccionar los mas interesantes
+    - Priorizar preguntas sobre productos y precios
+
+# --- Skills ---
+skills:
+  directory: /app/skills
+  enabled:
+    - influencer-speak
+    - product-showcase
+    - browser-research
+    - stream-control
+    - video-record

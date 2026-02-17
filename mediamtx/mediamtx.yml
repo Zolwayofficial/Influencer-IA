@@ -1,0 +1,57 @@
+# MediaMTX Configuration
+# Documentacion: https://github.com/bluenviron/mediamtx
+
+# Logging
+logLevel: info
+logDestinations: [stdout]
+
+# API para health checks y gestion
+api: yes
+apiAddress: :9997
+
+# Metricas Prometheus
+metrics: yes
+metricsAddress: :9998
+
+# --- Protocolos de entrada/salida ---
+
+# RTMP (recibe stream de FFmpeg)
+rtmp: yes
+rtmpAddress: :1935
+
+# RTSP
+rtsp: yes
+rtspAddress: :8554
+protocols: [tcp]
+
+# HLS (para preview web)
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+
+# WebRTC (para preview de baja latencia)
+webrtc: yes
+webrtcAddress: :8889
+
+# SRT (para OBS/TikTok Live Studio)
+srt: yes
+srtAddress: :8890
+
+# --- Paths (rutas de stream) ---
+paths:
+  # Stream principal del influencer
+  live/influencer:
+    # Fuente: FFmpeg del Stream Compositor via RTMP
+    source: publisher
+    # Cualquiera puede leer (para OBS/preview)
+    readUser:
+    readPass:
+    # Solo el compositor puede publicar
+    publishUser:
+    publishPass:
+
+  # Path generico para pruebas
+  all_others:
+    # Permite cualquier path no definido arriba

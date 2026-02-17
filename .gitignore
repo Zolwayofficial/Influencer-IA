@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# TLS certs
+traefik/acme.json
+
+# Cookies de sesion
+cookies/*.json
+
+# Modelo 3D (muy grande para git)
+avatar-frontend/dist/models/*.glb
+avatar-frontend/dist/animations/*.fbx
+
+# Node modules
+node_modules/
+chat-bridge/node_modules/
+stream-compositor/node_modules/
+headtts/node_modules/
+
+# Datos persistentes (estan en Docker volumes)
+*_data/
+
+# Archivos temporales
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

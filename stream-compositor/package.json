@@ -1,0 +1,10 @@
+{
+  "name": "influencer-stream-compositor",
+  "version": "1.0.0",
+  "description": "Headless browser capture + FFmpeg streaming/recording",
+  "main": "src/index.js",
+  "dependencies": {
+    "express": "^4.21.0",
+    "minio": "^8.0.2"
+  }
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Influencer Avatar</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Contenedor principal del avatar 3D -->
+  <div id="avatar"></div>
+
+  <!-- Overlay: informacion del producto -->
+  <div id="product-overlay">
+    <button id="product-close" onclick="document.getElementById('product-overlay').style.display='none'">&times;</button>
+    <div id="product-image-container">
+      <img id="product-image" src="" alt="Producto">
+    </div>
+    <div id="product-info">
+      <h3 id="product-name"></h3>
+      <p id="product-price"></p>
+      <ul id="product-features"></ul>
+    </div>
+  </div>
+
+  <!-- Overlay: chat en vivo -->
+  <div id="chat-overlay">
+    <div id="chat-header">Chat en Vivo</div>
+    <div id="chat-messages"></div>
+  </div>
+
+  <!-- Overlay: estado del stream -->
+  <div id="status-bar">
+    <span id="status-indicator"></span>
+    <span id="status-text">Conectando...</span>
+  </div>
+
+  <script type="module" src="js/app.mjs"></script>
+</body>
+</html>
