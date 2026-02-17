@@ -1,0 +1,133 @@
+{
+  "name": "Livestream Programado",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 20,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "name": "Cron Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300],
+      "notes": "Se activa todos los dias a las 8:00 PM. Ajustar horario segun tu stream."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://stream-compositor:5000/api/go-live",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "filename",
+              "value": "={{ 'livestream_' + $now.format('yyyy-MM-dd_HH-mm') + '.mp4' }}"
+            }
+          ]
+        }
+      },
+      "name": "Iniciar Stream + Grabacion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "name": "Esperar Arranque",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://chat-bridge:4000/api/command",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "speak"
+            },
+            {
+              "name": "text",
+              "value": "Hola a todos! Bienvenidos al stream de hoy. Vamos a revisar los mejores productos que encontre esta semana."
+            },
+            {
+              "name": "emotion",
+              "value": "happy"
+            }
+          ]
+        }
+      },
+      "name": "Saludo Inicial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://chat-bridge:4000/api/command",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "emote"
+            },
+            {
+              "name": "animation",
+              "value": "waving"
+            }
+          ]
+        }
+      },
+      "name": "Animacion Saludo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 500]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          { "node": "Iniciar Stream + Grabacion", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Iniciar Stream + Grabacion": {
+      "main": [
+        [
+          { "node": "Esperar Arranque", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Esperar Arranque": {
+      "main": [
+        [
+          { "node": "Saludo Inicial", "type": "main", "index": 0 },
+          { "node": "Animacion Saludo", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Mexico_City"
+  },
+  "tags": [
+    { "name": "livestream" },
+    { "name": "automatizacion" }
+  ]
+}

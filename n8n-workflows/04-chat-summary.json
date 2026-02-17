@@ -1,0 +1,113 @@
+{
+  "name": "Resumen de Chat Post-Stream",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stream-ended",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook: Stream Terminado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "notes": "Llamar POST /webhook/stream-ended desde deploy.sh o manualmente cuando el stream termina"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://chat-bridge:4000/api/chat/history"
+      },
+      "name": "Obtener Historial Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const messages = $input.first().json;\nconst chatLog = messages.map(m => `[${m.platform}] ${m.user}: ${m.text}`).join('\\n');\nconst totalMessages = messages.length;\nconst platforms = [...new Set(messages.map(m => m.platform))];\nconst gifts = messages.filter(m => m.type === 'gift');\nconst uniqueUsers = [...new Set(messages.map(m => m.user))];\n\nreturn [{\n  json: {\n    chatLog,\n    totalMessages,\n    platforms,\n    giftCount: gifts.length,\n    uniqueUsers: uniqueUsers.length,\n    topUsers: uniqueUsers.slice(0, 10),\n    summary_prompt: `Resume este chat de livestream en 3-5 puntos clave. Identifica los temas mas populares, preguntas frecuentes, y el sentimiento general:\\n\\n${chatLog}`\n  }\n}];"
+      },
+      "name": "Preparar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen2.5:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.summary_prompt }}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "name": "Ollama: Resumir Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "stream_reports",
+        "columns": "date,total_messages,unique_users,gift_count,summary,created_at",
+        "values": "={{ $now.format('yyyy-MM-dd') }},={{ $('Preparar Datos').first().json.totalMessages }},={{ $('Preparar Datos').first().json.uniqueUsers }},={{ $('Preparar Datos').first().json.giftCount }},={{ $json.response }},={{ $now.toISO() }}"
+      },
+      "name": "Guardar Reporte",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1140, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Stream Terminado": {
+      "main": [
+        [
+          { "node": "Obtener Historial Chat", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Obtener Historial Chat": {
+      "main": [
+        [
+          { "node": "Preparar Datos", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Preparar Datos": {
+      "main": [
+        [
+          { "node": "Ollama: Resumir Chat", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Ollama: Resumir Chat": {
+      "main": [
+        [
+          { "node": "Guardar Reporte", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Mexico_City"
+  },
+  "tags": [
+    { "name": "resumen" },
+    { "name": "post-stream" }
+  ]
+}

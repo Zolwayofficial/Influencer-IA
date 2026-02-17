@@ -1,0 +1,122 @@
+{
+  "name": "Investigacion Diaria de Productos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "name": "Cada dia a las 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://openclaw:3000/webhook/task",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "research_products"
+            },
+            {
+              "name": "instructions",
+              "value": "Investiga los 5 productos mas trending en tecnologia en Amazon.com hoy. Para cada uno obtiene: nombre, precio, rating, imagen, y una descripcion breve de por que es popular. Guarda los resultados."
+            },
+            {
+              "name": "model",
+              "value": "default"
+            }
+          ]
+        }
+      },
+      "name": "OpenClaw: Investigar Productos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "notes": "OpenClaw usa el skill browser-research para navegar Amazon y extraer datos"
+    },
+    {
+      "parameters": {
+        "amount": 120,
+        "unit": "seconds"
+      },
+      "name": "Esperar Investigacion",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [720, 300],
+      "notes": "La investigacion toma ~2 min (navegacion + extraccion)"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://openclaw:3000/api/tasks/latest",
+        "options": {}
+      },
+      "name": "Obtener Resultados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "daily_products",
+        "columns": "date,products_json,created_at",
+        "values": "={{ $now.format('yyyy-MM-dd') }},={{ JSON.stringify($json.results) }},={{ $now.toISO() }}"
+      },
+      "name": "Guardar en PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1160, 300],
+      "notes": "Requiere crear la tabla daily_products en PostgreSQL"
+    }
+  ],
+  "connections": {
+    "Cada dia a las 9AM": {
+      "main": [
+        [
+          { "node": "OpenClaw: Investigar Productos", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenClaw: Investigar Productos": {
+      "main": [
+        [
+          { "node": "Esperar Investigacion", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Esperar Investigacion": {
+      "main": [
+        [
+          { "node": "Obtener Resultados", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Obtener Resultados": {
+      "main": [
+        [
+          { "node": "Guardar en PostgreSQL", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Mexico_City"
+  },
+  "tags": [
+    { "name": "productos" },
+    { "name": "investigacion" }
+  ]
+}
