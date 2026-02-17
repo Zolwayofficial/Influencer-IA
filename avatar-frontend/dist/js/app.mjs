@@ -41,7 +41,9 @@ class InfluencerApp {
         markedOptions: { mangle: false, headerIds: false },
       });
 
-      // Cargar el avatar GLB de ReadyPlayerMe
+      // Cargar el avatar GLB
+      // Avatar: brunette.glb del repositorio TalkingHead (CC BY-NC 4.0)
+      // Para uso comercial, crear tu propio avatar en Avaturn (avaturn.me)
       await this.head.showAvatar(
         {
           url: '/models/avatar.glb',
@@ -51,8 +53,12 @@ class InfluencerApp {
           ttsLang: 'es',
         },
         {
-          idleAnimationUrl: '/animations/idle.fbx',
-          // Animaciones adicionales se cargan bajo demanda
+          // Animaciones Mixamo opcionales (descargar de mixamo.com con cuenta Adobe):
+          //   idle.fbx     -> "Breathing Idle" o "Happy Idle"
+          //   talking.fbx  -> "Talking" o "Explaining"
+          //   pointing.fbx -> "Pointing"
+          //   waving.fbx   -> "Waving"
+          // TalkingHead usa su idle integrado si no se especifica uno externo
         }
       );
 
@@ -113,9 +119,13 @@ class InfluencerApp {
       case 'emote':
         // Reproducir animacion (wave, point, nod, etc.)
         if (msg.animation) {
-          await this.head.playAnimation(`/animations/${msg.animation}.fbx`, {
-            loop: msg.loop || false,
-          });
+          try {
+            await this.head.playAnimation(`/animations/${msg.animation}.fbx`, {
+              loop: msg.loop || false,
+            });
+          } catch (err) {
+            console.warn(`Animacion '${msg.animation}' no encontrada, ignorando`);
+          }
         }
         if (msg.mood) {
           this.head.setMood(msg.mood);
@@ -137,7 +147,8 @@ class InfluencerApp {
       case 'speak_and_show':
         // Mostrar producto y hablar de el simultaneamente
         this.showProduct(msg.product);
-        await this.head.playAnimation('/animations/pointing.fbx');
+        try { await this.head.playAnimation('/animations/pointing.fbx'); }
+        catch { /* pointing.fbx opcional */ }
         await this.head.speakText(msg.text, {
           language: msg.language || 'es',
           avatarMood: 'excited',
