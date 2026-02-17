@@ -24,9 +24,13 @@ class InfluencerApp {
     try {
       const avatarEl = document.getElementById('avatar');
 
-      // Inicializar TalkingHead con HeadTTS como backend de TTS
+      // Inicializar TalkingHead con HeadTTS oficial como backend de TTS
+      // HeadTTS corre en puerto 8882, proxied via Nginx en /tts/ws
+      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ttsUrl = `${wsProtocol}//${location.host}/tts/ws`;
+
       this.head = new TalkingHead(avatarEl, {
-        ttsEndpoint: '/tts/ws',          // Proxy via Nginx al HeadTTS WebSocket
+        ttsEndpoint: ttsUrl,              // WebSocket al HeadTTS oficial
         ttsApikey: '',
         lipsyncModules: ['es'],           // Modulo de lip-sync en espanol
         cameraView: 'upper',              // Vista de cintura para arriba
@@ -43,7 +47,8 @@ class InfluencerApp {
           url: '/models/avatar.glb',
           body: 'F',                       // F = femenino, M = masculino (ajustar)
           avatarMood: 'happy',
-          ttsVoice: 'es_ES-sharvard-medium',
+          ttsVoice: 'ef_dora',             // Voz Kokoro en espanol (HeadTTS oficial)
+          ttsLang: 'es',
         },
         {
           idleAnimationUrl: '/animations/idle.fbx',

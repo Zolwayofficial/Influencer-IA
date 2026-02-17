@@ -2,16 +2,26 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Dependencias del sistema para ONNX Runtime
+# Dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
     wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package.json .
+# Clonar HeadTTS oficial (MIT License)
+RUN git clone --depth 1 https://github.com/met4citizen/HeadTTS.git .
+
+# Instalar dependencias (descarga modelo Kokoro en primer npm start)
 RUN npm install --production
-COPY . .
 
-USER node
-EXPOSE 3001
+# Copiar nuestra config personalizada (espanol, puerto 8882)
+COPY headtts-node.json .
 
-CMD ["node", "server.js"]
+# Cache de HuggingFace dentro del contenedor
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface
+
+EXPOSE 8882
+
+CMD ["npm", "start"]
