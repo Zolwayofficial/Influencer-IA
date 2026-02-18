@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Avatar Test</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+    }
+  }
+  </script>
+  <style>
+    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; }
+    #avatar { width: 100vw; height: 100vh; }
+    #log { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; font-size: 12px; max-height: 50vh; overflow-y: auto; z-index: 999; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="avatar"></div>
+  <div id="log">Iniciando...\n</div>
+  <script type="module">
+    const log = document.getElementById('log');
+    function addLog(msg) {
+      log.textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    try {
+      addLog('1. Importando TalkingHead...');
+      const { TalkingHead } = await import('talkinghead');
+      addLog('2. TalkingHead importado OK');
+
+      const el = document.getElementById('avatar');
+      addLog('3. Creando instancia TalkingHead...');
+
+      const head = new TalkingHead(el, {
+        ttsEndpoint: null,
+        lipsyncModules: ['en'],
+        cameraView: 'upper',
+        cameraRotateEnable: true,
+        cameraZoomEnable: true,
+      });
+      addLog('4. Instancia creada OK');
+
+      addLog('5. Cargando avatar GLB...');
+      await head.showAvatar({
+        url: '/models/avatar.glb',
+        body: 'F',
+        avatarMood: 'happy',
+      }, {});
+      addLog('6. Avatar cargado OK!');
+
+    } catch (err) {
+      addLog('ERROR: ' + err.message);
+      addLog('Stack: ' + err.stack);
+    }
+  </script>
+</body>
+</html>
