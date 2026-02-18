@@ -17,15 +17,15 @@
     "styleDim": 256,
     "frameRate": 40,
     "audioSampleRate": 24000,
-    "languages": ["es", "en-us"],
+    "languages": ["en-us"],
     "dictionaryPath": "./dictionaries",
     "voicePath": "./voices",
-    "voices": ["ef_dora", "em_alex", "af_bella"],
+    "voices": ["af_bella", "am_adam", "af_heart"],
     "deltaStart": -10,
     "deltaEnd": 10,
     "defaults": {
-      "voice": "ef_dora",
-      "language": "es",
+      "voice": "af_bella",
+      "language": "en-us",
       "speed": 1,
       "audioEncoding": "wav"
     }

@@ -30,11 +30,11 @@ class InfluencerApp {
       const ttsUrl = `${wsProtocol}//${location.host}/tts/ws`;
 
       this.head = new TalkingHead(avatarEl, {
-        ttsEndpoint: ttsUrl,              // WebSocket al HeadTTS oficial
+        ttsEndpoint: ttsUrl,
         ttsApikey: '',
-        lipsyncModules: ['es'],           // Modulo de lip-sync en espanol
-        cameraView: 'upper',              // Vista de cintura para arriba
-        cameraRotateEnable: false,        // Sin rotacion de camara (stream fijo)
+        lipsyncModules: ['en'],
+        cameraView: 'upper',
+        cameraRotateEnable: false,
         cameraZoomEnable: false,
         avatarMood: 'happy',
         avatarMute: false,
@@ -42,33 +42,26 @@ class InfluencerApp {
       });
 
       // Cargar el avatar GLB
-      // Avatar: brunette.glb del repositorio TalkingHead (CC BY-NC 4.0)
-      // Para uso comercial, crear tu propio avatar en Avaturn (avaturn.me)
       await this.head.showAvatar(
         {
           url: '/models/avatar.glb',
-          body: 'F',                       // F = femenino, M = masculino (ajustar)
+          body: 'F',
           avatarMood: 'happy',
-          ttsVoice: 'ef_dora',             // Voz Kokoro en espanol (HeadTTS oficial)
-          ttsLang: 'es',
+          ttsVoice: 'af_bella',
+          ttsLang: 'en-us',
         },
-        {
-          // Animaciones Mixamo opcionales (descargar de mixamo.com con cuenta Adobe):
-          //   idle.fbx     -> "Breathing Idle" o "Happy Idle"
-          //   talking.fbx  -> "Talking" o "Explaining"
-          //   pointing.fbx -> "Pointing"
-          //   waving.fbx   -> "Waving"
-          // TalkingHead usa su idle integrado si no se especifica uno externo
-        }
+        {}
       );
 
       this.setStatus('connected', 'Avatar listo');
-      this.connectWebSocket();
 
     } catch (err) {
       console.error('Error inicializando avatar:', err);
-      this.setStatus('error', 'Error cargando avatar');
+      this.setStatus('error', 'Error cargando avatar: ' + err.message);
     }
+
+    // Conectar WebSocket independientemente del estado del avatar
+    this.connectWebSocket();
   }
 
   // --- WebSocket: recibe comandos del Chat Bridge / OpenClaw ---
