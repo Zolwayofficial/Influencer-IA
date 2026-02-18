@@ -24,14 +24,8 @@ class InfluencerApp {
     try {
       const avatarEl = document.getElementById('avatar');
 
-      // Inicializar TalkingHead con HeadTTS oficial como backend de TTS
-      // HeadTTS corre en puerto 8882, proxied via Nginx en /tts/ws
-      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ttsUrl = `${wsProtocol}//${location.host}/tts/ws`;
-
       this.head = new TalkingHead(avatarEl, {
-        ttsEndpoint: ttsUrl,
-        ttsApikey: '',
+        ttsEndpoint: null,
         lipsyncModules: ['en'],
         cameraView: 'upper',
         cameraRotateEnable: false,
