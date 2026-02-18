@@ -17,13 +17,14 @@ RUN npm install --production
 
 # Copiar nuestra config personalizada (espanol, puerto 8882)
 COPY headtts-node.json .
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Cache de HuggingFace dentro del contenedor
 ENV HF_HOME=/app/.cache/huggingface
-ENV ORT_DISABLE_MEMORY_ARENA=1
 ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN mkdir -p /app/.cache/huggingface
 
 EXPOSE 8882
 
-CMD ["node", "--max-old-space-size=3072", "./modules/headtts-node.mjs"]
+CMD ["./entrypoint.sh"]
