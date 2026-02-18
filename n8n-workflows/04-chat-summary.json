@@ -35,26 +35,25 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://ollama:11434/api/generate",
-        "sendBody": true,
-        "bodyParameters": {
+        "url": "={{ $env.LLM_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1' }}/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
           "parameters": [
             {
-              "name": "model",
-              "value": "qwen2.5:7b"
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.DASHSCOPE_API_KEY }}"
             },
             {
-              "name": "prompt",
-              "value": "={{ $json.summary_prompt }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
-        }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.LLM_MODEL || 'qwen-plus', messages: [{ role: 'user', content: $json.summary_prompt }], stream: false }) }}"
       },
-      "name": "Ollama: Resumir Chat",
+      "name": "Qwen API: Resumir Chat",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [920, 300]
@@ -64,7 +63,7 @@
         "operation": "insert",
         "table": "stream_reports",
         "columns": "date,total_messages,unique_users,gift_count,summary,created_at",
-        "values": "={{ $now.format('yyyy-MM-dd') }},={{ $('Preparar Datos').first().json.totalMessages }},={{ $('Preparar Datos').first().json.uniqueUsers }},={{ $('Preparar Datos').first().json.giftCount }},={{ $json.response }},={{ $now.toISO() }}"
+        "values": "={{ $now.format('yyyy-MM-dd') }},={{ $('Preparar Datos').first().json.totalMessages }},={{ $('Preparar Datos').first().json.uniqueUsers }},={{ $('Preparar Datos').first().json.giftCount }},={{ $json.choices[0].message.content }},={{ $now.toISO() }}"
       },
       "name": "Guardar Reporte",
       "type": "n8n-nodes-base.postgres",
@@ -90,11 +89,11 @@
     "Preparar Datos": {
       "main": [
         [
-          { "node": "Ollama: Resumir Chat", "type": "main", "index": 0 }
+          { "node": "Qwen API: Resumir Chat", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Ollama: Resumir Chat": {
+    "Qwen API: Resumir Chat": {
       "main": [
         [
           { "node": "Guardar Reporte", "type": "main", "index": 0 }

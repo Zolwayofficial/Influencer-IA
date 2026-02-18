@@ -6,7 +6,6 @@ networks:
     name: influencer_data-net
 
 volumes:
-  ollama_models:
   qdrant_data:
   openclaw_sessions:
   headtts_cache:
@@ -22,21 +21,20 @@ services:
       - ./cookies:/app/cookies
     environment:
       OC_GATEWAY_PORT: 3000
-      OC_DEFAULT_MODEL_PROVIDER: ollama
-      OC_DEFAULT_MODEL: qwen2.5:7b
-      OC_OLLAMA_BASE_URL: http://ollama:11434
+      OC_DEFAULT_MODEL_PROVIDER: openai-compatible
+      OC_DEFAULT_MODEL: ${LLM_MODEL:-qwen-plus}
+      OC_OPENAI_BASE_URL: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      OC_OPENAI_API_KEY: ${DASHSCOPE_API_KEY}
       OC_QDRANT_URL: http://qdrant:6333
       OC_QDRANT_COLLECTION: influencer_memory
-      EXTERNAL_API_URL: ${EXTERNAL_API_URL}
-      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      EXTERNAL_API_URL: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      EXTERNAL_API_KEY: ${DASHSCOPE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-none}
       REDIS_URL: redis://redis:6379
     networks:
       - brain-net
       - data-net
     depends_on:
-      ollama:
-        condition: service_healthy
       qdrant:
         condition: service_healthy
     healthcheck:
@@ -48,27 +46,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
-          cpus: '4'
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: influencer-ollama
-    volumes:
-      - ollama_models:/root/.ollama
-    networks:
-      - brain-net
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 16G
-          cpus: '6'
+          memory: 2G
+          cpus: '2'
 
   qdrant:
     image: qdrant/qdrant:latest

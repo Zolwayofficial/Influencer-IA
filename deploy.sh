@@ -107,7 +107,6 @@ cmd_setup() {
   echo "  2. Pon tu avatar en: avatar-frontend/dist/models/avatar.glb"
   echo "  3. Pon tus animaciones en: avatar-frontend/dist/animations/"
   echo "  4. Levanta los servicios: ./deploy.sh up"
-  echo "  5. Descarga el modelo de Ollama: docker exec influencer-ollama ollama pull qwen2.5:7b"
 }
 
 # --- UP: Levantar servicios ---
@@ -192,7 +191,6 @@ cmd_health() {
     fi
   }
 
-  check "Ollama"           "http://localhost:11434/api/tags"
   check "Qdrant"           "http://localhost:6333/healthz"
   check "HeadTTS"          "http://localhost:8882"
   check "Chat Bridge"      "http://localhost:4000/health"

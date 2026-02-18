@@ -7,25 +7,26 @@ gateway:
 
 # --- Modelos IA ---
 models:
-  # Modelo por defecto: Ollama local (gratis, rapido para chat)
+  # Modelo por defecto: Qwen API via DashScope (rapido, barato)
   default:
-    provider: ollama
-    model: qwen2.5:7b
-    endpoint: http://ollama:11434
+    provider: openai-compatible
+    model: ${LLM_MODEL:-qwen-plus}
+    endpoint: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+    apiKey: ${DASHSCOPE_API_KEY}
 
-  # Modelo de vision: API externa para analisis de imagenes/productos
+  # Modelo de vision: Qwen-VL para analisis de imagenes/productos
   vision:
     provider: openai-compatible
     model: qwen-vl-max
-    endpoint: ${EXTERNAL_API_URL}
-    apiKey: ${EXTERNAL_API_KEY}
+    endpoint: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+    apiKey: ${DASHSCOPE_API_KEY}
 
-  # Modelo complejo: Para razonamiento avanzado y generacion de guiones
+  # Modelo complejo: Para razonamiento avanzado (opcional, usa DashScope si no hay OpenAI)
   complex:
     provider: openai-compatible
-    model: gpt-4o
-    endpoint: https://api.openai.com/v1
-    apiKey: ${OPENAI_API_KEY}
+    model: ${COMPLEX_MODEL:-qwen-max}
+    endpoint: ${COMPLEX_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+    apiKey: ${COMPLEX_API_KEY:-${DASHSCOPE_API_KEY}}
 
 # --- Memoria Vectorial ---
 memory:
