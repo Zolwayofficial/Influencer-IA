@@ -1,0 +1,507 @@
+# ============================================================
+# INFLUENCER 3D POWERHOUSE - Docker Compose Unificado (VPS)
+# ============================================================
+# Uso: docker compose up -d --build
+# ============================================================
+
+networks:
+  influencer-net:
+    driver: bridge
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  n8n_data:
+  qdrant_data:
+  openclaw_sessions:
+  headtts_cache:
+  portainer_data:
+  uptime_data:
+  prometheus_data:
+  grafana_data:
+
+services:
+
+  # ===================
+  # DATA SERVICES
+  # ===================
+
+  postgresql:
+    image: postgres:16-alpine
+    container_name: influencer-postgres
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_MULTIPLE_DATABASES: influencer,n8n
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./scripts/create-multiple-dbs.sh:/docker-entrypoint-initdb.d/create-multiple-dbs.sh:ro
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  redis:
+    image: redis:7-alpine
+    container_name: influencer-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  minio:
+    image: minio/minio:latest
+    container_name: influencer-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - influencer-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-console.rule=Host(`storage.${DOMAIN}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-api.rule=Host(`s3.${DOMAIN}`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: influencer-n8n
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgresql
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${PG_USER}
+      DB_POSTGRESDB_PASSWORD: ${PG_PASSWORD}
+      WEBHOOK_URL: https://n8n.${DOMAIN}/
+      N8N_EDITOR_BASE_URL: https://n8n.${DOMAIN}/
+      GENERIC_TIMEZONE: America/Mexico_City
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - influencer-net
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.${DOMAIN}`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+
+  # ===================
+  # INFRA SERVICES
+  # ===================
+
+  traefik:
+    image: traefik:v3.3
+    container_name: influencer-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme.json:/acme.json
+    networks:
+      - influencer-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: influencer-portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    networks:
+      - influencer-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    healthcheck:
+      test: ["CMD", "/docker", "container", "top", "portainer"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: influencer-uptime-kuma
+    volumes:
+      - uptime_data:/app/data
+    networks:
+      - influencer-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime.rule=Host(`status.${DOMAIN}`)"
+      - "traefik.http.routers.uptime.entrypoints=websecure"
+      - "traefik.http.routers.uptime.tls.certresolver=letsencrypt"
+      - "traefik.http.services.uptime.loadbalancer.server.port=3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/api/entry-page', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: influencer-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: influencer-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - influencer-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: influencer-cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - influencer-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: influencer-node-exporter
+    networks:
+      - influencer-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+
+  # ===================
+  # BRAIN SERVICES
+  # ===================
+
+  openclaw:
+    image: openclaw/openclaw:latest
+    container_name: influencer-openclaw
+    volumes:
+      - ./openclaw/config:/app/config:ro
+      - ./openclaw/skills:/app/skills:ro
+      - openclaw_sessions:/app/sessions
+      - ./cookies:/app/cookies
+    environment:
+      OC_GATEWAY_PORT: 3000
+      OC_DEFAULT_MODEL_PROVIDER: openai-compatible
+      OC_DEFAULT_MODEL: ${LLM_MODEL:-qwen-plus}
+      OC_OPENAI_BASE_URL: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      OC_OPENAI_API_KEY: ${DASHSCOPE_API_KEY}
+      OC_QDRANT_URL: http://qdrant:6333
+      OC_QDRANT_COLLECTION: influencer_memory
+      EXTERNAL_API_URL: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      EXTERNAL_API_KEY: ${DASHSCOPE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-none}
+      REDIS_URL: redis://redis:6379
+    networks:
+      - influencer-net
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: influencer-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:6333/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  headtts:
+    build: ./headtts
+    container_name: influencer-headtts
+    volumes:
+      - headtts_cache:/app/.cache/huggingface
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8882 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+
+  # ===================
+  # MEDIA SERVICES
+  # ===================
+
+  avatar-frontend:
+    image: nginx:alpine
+    container_name: influencer-avatar
+    volumes:
+      - ./avatar-frontend/dist:/usr/share/nginx/html:ro
+      - ./avatar-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - influencer-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.avatar.rule=Host(`avatar.${DOMAIN}`)"
+      - "traefik.http.routers.avatar.entrypoints=websecure"
+      - "traefik.http.routers.avatar.tls.certresolver=letsencrypt"
+      - "traefik.http.services.avatar.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  chat-bridge:
+    build: ./chat-bridge
+    container_name: influencer-chat-bridge
+    environment:
+      TIKTOK_SESSION_ID: ${TIKTOK_SESSION_ID}
+      TIKTOK_USERNAME: ${TIKTOK_USERNAME}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      YOUTUBE_VIDEO_ID: ${YOUTUBE_VIDEO_ID}
+      REDIS_URL: redis://redis:6379
+      OPENCLAW_WEBHOOK_URL: http://openclaw:3000/webhook/chat
+      AVATAR_WS_URL: ws://avatar-frontend:8080/ws/commands
+      PORT: 4000
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:4000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: influencer-mediamtx
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "1935:1935"
+      - "8554:8554"
+      - "8888:8888"
+      - "8889:8889"
+      - "8890:8890/udp"
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:9997/v3/paths/list || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
+
+  stream-compositor:
+    build: ./stream-compositor
+    container_name: influencer-compositor
+    shm_size: '2gb'
+    environment:
+      AVATAR_URL: http://avatar-frontend:8080
+      MEDIAMTX_RTMP: rtmp://mediamtx:1935/live/influencer
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: recordings
+      MINIO_USE_SSL: "false"
+      DISPLAY: ":99"
+      STREAM_WIDTH: 1920
+      STREAM_HEIGHT: 1080
+      STREAM_FPS: 30
+      STREAM_BITRATE: 4000k
+      PORT: 5000
+    networks:
+      - influencer-net
+    depends_on:
+      avatar-frontend:
+        condition: service_healthy
+      mediamtx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '4'

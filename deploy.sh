@@ -29,22 +29,6 @@ warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[x]${NC} $1"; exit 1; }
 info() { echo -e "${BLUE}[i]${NC} $1"; }
 
-# Archivos compose en orden de dependencia
-COMPOSE_FILES=(
-  "docker-compose.data.yml"
-  "docker-compose.infra.yml"
-  "docker-compose.brain.yml"
-  "docker-compose.media.yml"
-)
-
-compose_cmd() {
-  local action=$1
-  shift
-  for f in "${COMPOSE_FILES[@]}"; do
-    docker compose -f "$f" $action "$@"
-  done
-}
-
 # --- SETUP: Primera vez ---
 cmd_setup() {
   log "Configuracion inicial del Influencer 3D Powerhouse"
@@ -52,7 +36,7 @@ cmd_setup() {
 
   # Verificar Docker
   if ! command -v docker &> /dev/null; then
-    error "Docker no esta instalado. Ejecuta: apt-get install -y docker.io docker-compose-plugin"
+    error "Docker no esta instalado. Ejecuta: curl -fsSL https://get.docker.com | bash"
   fi
 
   # Verificar .env
@@ -70,34 +54,20 @@ cmd_setup() {
 
   # Crear acme.json para Traefik (permisos estrictos)
   if [ ! -f traefik/acme.json ]; then
+    mkdir -p traefik
     touch traefik/acme.json
     chmod 600 traefik/acme.json
     log "traefik/acme.json creado"
   fi
 
-  # Crear redes Docker compartidas
-  log "Creando redes Docker..."
-  docker network create influencer_brain-net 2>/dev/null || info "Red brain-net ya existe"
-  docker network create influencer_media-net 2>/dev/null || info "Red media-net ya existe"
-  docker network create influencer_data-net  2>/dev/null || info "Red data-net ya existe"
-  docker network create influencer_infra-net 2>/dev/null || info "Red infra-net ya existe"
-
-  # Permisos del script de creacion de DBs
+  # Permisos
   chmod +x scripts/create-multiple-dbs.sh 2>/dev/null || true
-
-  # Permisos del entrypoint del compositor
   chmod +x stream-compositor/scripts/entrypoint.sh 2>/dev/null || true
 
   # Optimizacion del kernel
   log "Aplicando optimizaciones del kernel..."
   sysctl -w fs.inotify.max_user_watches=524288 2>/dev/null || true
   sysctl -w net.core.rmem_max=2500000 2>/dev/null || true
-
-  # Persistir optimizaciones
-  grep -q "fs.inotify.max_user_watches" /etc/sysctl.conf 2>/dev/null || \
-    echo "fs.inotify.max_user_watches=524288" >> /etc/sysctl.conf
-  grep -q "net.core.rmem_max" /etc/sysctl.conf 2>/dev/null || \
-    echo "net.core.rmem_max=2500000" >> /etc/sysctl.conf
 
   echo ""
   log "Setup completado!"
@@ -113,20 +83,7 @@ cmd_setup() {
 cmd_up() {
   log "Levantando servicios..."
   echo ""
-
-  # Crear redes si no existen
-  docker network create influencer_brain-net 2>/dev/null || true
-  docker network create influencer_media-net 2>/dev/null || true
-  docker network create influencer_data-net  2>/dev/null || true
-  docker network create influencer_infra-net 2>/dev/null || true
-
-  # Levantar en orden
-  for f in "${COMPOSE_FILES[@]}"; do
-    info "Desplegando $f..."
-    docker compose -f "$f" up -d --build
-    sleep 3
-  done
-
+  docker compose up -d --build
   echo ""
   log "Todos los servicios levantados!"
   echo ""
@@ -136,10 +93,7 @@ cmd_up() {
 # --- DOWN: Detener servicios ---
 cmd_down() {
   log "Deteniendo servicios..."
-  # Detener en orden inverso
-  for (( i=${#COMPOSE_FILES[@]}-1 ; i>=0 ; i-- )); do
-    docker compose -f "${COMPOSE_FILES[$i]}" down
-  done
+  docker compose down
   log "Todos los servicios detenidos"
 }
 
@@ -156,7 +110,7 @@ cmd_logs() {
   if [ -n "$service" ]; then
     docker logs -f "influencer-$service"
   else
-    compose_cmd logs -f --tail=50
+    docker compose logs -f --tail=50
   fi
 }
 
@@ -172,7 +126,7 @@ cmd_status() {
 # --- PULL ---
 cmd_pull() {
   log "Actualizando imagenes Docker..."
-  compose_cmd pull
+  docker compose pull
   log "Imagenes actualizadas. Ejecuta './deploy.sh up' para aplicar."
 }
 
