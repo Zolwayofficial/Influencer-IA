@@ -393,6 +393,8 @@ services:
     volumes:
       - ./avatar-frontend/dist:/usr/share/nginx/html:ro
       - ./avatar-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:8080"
     networks:
       - influencer-net
     labels:
