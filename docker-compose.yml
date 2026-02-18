@@ -313,7 +313,7 @@ services:
   # ===================
 
   openclaw:
-    image: openclaw/openclaw:latest
+    build: ./openclaw
     container_name: influencer-openclaw
     volumes:
       - ./openclaw/config:/app/config:ro
