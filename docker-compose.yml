@@ -152,6 +152,8 @@ services:
   traefik:
     image: traefik:v3.3
     container_name: influencer-traefik
+    environment:
+      DOCKER_API_VERSION: "1.44"
     command:
       - "--api.dashboard=true"
       - "--providers.docker=true"
@@ -204,10 +206,11 @@ services:
       - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
     healthcheck:
-      test: ["CMD", "/docker", "container", "top", "portainer"]
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:9000/api/system/status || exit 1"]
       interval: 30s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   uptime-kuma:
@@ -336,12 +339,15 @@ services:
       - influencer-net
     depends_on:
       qdrant:
+        condition: service_started
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:3000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 20s
     restart: unless-stopped
     deploy:
       resources:
@@ -357,7 +363,7 @@ services:
     networks:
       - influencer-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:6333/healthz || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:6333/healthz || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -436,7 +442,8 @@ services:
       test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:4000/health || exit 1"]
       interval: 30s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
     deploy:
       resources:
@@ -458,10 +465,11 @@ services:
     networks:
       - influencer-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:9997/v3/paths/list || exit 1"]
+      test: ["CMD-SHELL", "sh -c 'echo > /dev/tcp/127.0.0.1/9997'"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 10s
     restart: unless-stopped
     deploy:
       resources:
@@ -493,12 +501,13 @@ services:
       avatar-frontend:
         condition: service_healthy
       mediamtx:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:5000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 30s
     restart: unless-stopped
     deploy:
       resources:
