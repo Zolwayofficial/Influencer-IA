@@ -13,7 +13,7 @@
     "transformersModule": "@huggingface/transformers",
     "model": "onnx-community/Kokoro-82M-v1.0-ONNX-timestamped",
     "dtype": "q8",
-    "device": "wasm",
+    "device": "cpu",
     "styleDim": 256,
     "frameRate": 40,
     "audioSampleRate": 24000,
