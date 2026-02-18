@@ -20,8 +20,10 @@ COPY headtts-node.json .
 
 # Cache de HuggingFace dentro del contenedor
 ENV HF_HOME=/app/.cache/huggingface
+ENV ORT_DISABLE_MEMORY_ARENA=1
+ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN mkdir -p /app/.cache/huggingface
 
 EXPOSE 8882
 
-CMD ["npm", "start"]
+CMD ["node", "--max-old-space-size=3072", "./modules/headtts-node.mjs"]
