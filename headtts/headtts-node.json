@@ -20,7 +20,7 @@
     "languages": ["en-us"],
     "dictionaryPath": "./dictionaries",
     "voicePath": "./voices",
-    "voices": ["af_bella", "am_adam", "af_heart"],
+    "voices": ["af_bella", "am_fenrir"],
     "deltaStart": -10,
     "deltaEnd": 10,
     "defaults": {
