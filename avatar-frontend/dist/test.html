@@ -13,29 +13,40 @@
   }
   </script>
   <style>
-    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; }
+    body { margin: 0; background: #222; color: #0f0; font-family: monospace; }
     #avatar { width: 100vw; height: 100vh; }
-    #log { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; font-size: 12px; max-height: 50vh; overflow-y: auto; z-index: 999; white-space: pre-wrap; }
+    #log { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.9); padding: 15px; font-size: 13px; max-height: 80vh; overflow-y: auto; z-index: 999; white-space: pre-wrap; max-width: 60vw; border: 1px solid #0f0; }
   </style>
 </head>
 <body>
   <div id="avatar"></div>
-  <div id="log">Iniciando...\n</div>
+  <div id="log"></div>
   <script type="module">
-    const log = document.getElementById('log');
-    function addLog(msg) {
-      log.textContent += msg + '\n';
+    const logEl = document.getElementById('log');
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logEl.textContent += `[${time}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
       console.log(msg);
     }
 
+    // Capturar errores globales
+    window.onerror = (msg, src, line, col, err) => {
+      log(`GLOBAL ERROR: ${msg} at ${src}:${line}:${col}`);
+    };
+    window.onunhandledrejection = (e) => {
+      log(`UNHANDLED PROMISE: ${e.reason}`);
+    };
+
     try {
-      addLog('1. Importando TalkingHead...');
+      log('Step 1: Importing TalkingHead module...');
       const { TalkingHead } = await import('talkinghead');
-      addLog('2. TalkingHead importado OK');
+      log('Step 2: TalkingHead imported successfully');
 
       const el = document.getElementById('avatar');
-      addLog('3. Creando instancia TalkingHead...');
+      log(`Step 3: Avatar container size: ${el.offsetWidth}x${el.offsetHeight}`);
 
+      log('Step 4: Creating TalkingHead instance (no TTS)...');
       const head = new TalkingHead(el, {
         ttsEndpoint: null,
         lipsyncModules: ['en'],
@@ -43,19 +54,40 @@
         cameraRotateEnable: true,
         cameraZoomEnable: true,
       });
-      addLog('4. Instancia creada OK');
+      log('Step 5: Instance created OK');
 
-      addLog('5. Cargando avatar GLB...');
-      await head.showAvatar({
-        url: '/models/avatar.glb',
-        body: 'F',
-        avatarMood: 'happy',
-      }, {});
-      addLog('6. Avatar cargado OK!');
+      // Test: cargar GLB con progress y timeout
+      log('Step 6: Loading avatar GLB with progress tracking...');
+
+      const timeout = setTimeout(() => {
+        log('TIMEOUT: showAvatar has been loading for 30 seconds!');
+        log('This likely means the GLB file is incompatible or DRACO decoder failed');
+      }, 30000);
+
+      const progressCb = (event) => {
+        if (event.lengthComputable) {
+          const pct = Math.round((event.loaded / event.total) * 100);
+          log(`  Progress: ${pct}% (${event.loaded}/${event.total} bytes)`);
+        } else {
+          log(`  Progress: ${event.loaded} bytes loaded`);
+        }
+      };
+
+      await head.showAvatar(
+        {
+          url: '/models/avatar.glb',
+          body: 'F',
+          avatarMood: 'happy',
+        },
+        progressCb
+      );
+
+      clearTimeout(timeout);
+      log('Step 7: Avatar loaded and rendered!');
 
     } catch (err) {
-      addLog('ERROR: ' + err.message);
-      addLog('Stack: ' + err.stack);
+      log(`ERROR: ${err.message}`);
+      log(`Stack: ${err.stack}`);
     }
   </script>
 </body>
