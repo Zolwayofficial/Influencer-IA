@@ -41,10 +41,8 @@ class InfluencerApp {
           url: '/models/avatar.glb',
           body: 'F',
           avatarMood: 'happy',
-          ttsVoice: 'af_bella',
-          ttsLang: 'en-us',
         },
-        {}
+        null
       );
 
       this.setStatus('connected', 'Avatar listo');
