@@ -67,6 +67,11 @@ Si el mensaje no merece respuesta (spam, ofensivo, sin sentido), usa "action": "
 Para regalos y nuevos seguidores, siempre responde con emotion "surprised" o "excited".`;
 
 // ---------------------------------------------------------------------------
+// Estado global del agente
+// ---------------------------------------------------------------------------
+let autoShowcaseEnabled = true; // se puede activar/desactivar desde el panel
+
+// ---------------------------------------------------------------------------
 // Historial de conversacion (ventana deslizante)
 // ---------------------------------------------------------------------------
 const conversationHistory = [];
@@ -121,6 +126,12 @@ async function processChat(msg) {
   // Manejar action: show_product
   // -------------------------------------------------------------------------
   if (parsed.action === 'show_product' && parsed.query) {
+    if (!autoShowcaseEnabled) {
+      console.log('[OpenClaw] show_product bloqueado (autoShowcase desactivado)');
+      parsed.action = 'speak';
+      return parsed;
+    }
+
     console.log(`[OpenClaw] show_product detectado, query: ${parsed.query}`);
 
     // Investigar el producto (async, no bloquea la respuesta al webhook)
@@ -204,6 +215,19 @@ app.post('/api/showcase', async (req, res) => {
   _handleProductShowcase(query).catch(err => {
     console.error('[API/showcase] Error:', err.message);
   });
+});
+
+// Toggle showcase automatico — activar o desactivar desde el panel de control
+app.post('/api/autoshowcase', (req, res) => {
+  const { enabled } = req.body;
+  autoShowcaseEnabled = enabled !== false; // true por defecto si no se especifica
+  console.log(`[OpenClaw] autoShowcase ${autoShowcaseEnabled ? 'ACTIVADO' : 'DESACTIVADO'}`);
+  res.json({ autoShowcaseEnabled });
+});
+
+// Estado actual del agente
+app.get('/api/status', (_req, res) => {
+  res.json({ autoShowcaseEnabled, historySize: conversationHistory.length });
 });
 
 // Resetear historial de conversacion

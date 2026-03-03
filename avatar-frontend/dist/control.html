@@ -155,6 +155,33 @@
     /* Loading spinner on btn */
     .btn.loading { opacity: 0.6; pointer-events: none; }
 
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 6px;
+    }
+    .toggle-label { font-size: 0.95rem; color: #ccc; }
+    .toggle-label span { display: block; font-size: 0.75rem; color: #555; margin-top: 2px; }
+    .switch { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: #374151; border-radius: 28px;
+      cursor: pointer; transition: 0.3s;
+    }
+    .slider:before {
+      content: ''; position: absolute;
+      width: 20px; height: 20px; left: 4px; bottom: 4px;
+      background: #fff; border-radius: 50%; transition: 0.3s;
+    }
+    input:checked + .slider { background: #059669; }
+    input:checked + .slider:before { transform: translateX(24px); }
+
     /* Divider */
     hr { border: none; border-top: 1px solid #222; margin: 16px 0; }
 
@@ -232,7 +259,19 @@
 
   <!-- CONTROL LIVE -->
   <h2>⚙️ Control del live</h2>
-  <button class="btn btn-gray" onclick="doReset()">🗑️ Limpiar historial de conversación</button>
+
+  <div class="toggle-row">
+    <div class="toggle-label">
+      🛒 Mostrar productos automáticamente
+      <span>El avatar muestra overlay cuando alguien pide un producto en el chat</span>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="toggle-showcase" checked onchange="doToggleShowcase(this.checked)">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <button class="btn btn-gray" onclick="doReset()" style="margin-top:10px">🗑️ Limpiar historial de conversación</button>
 
 </div>
 
@@ -334,13 +373,28 @@
     }
   }
 
+  // ---- Toggle showcase automático ----
+  async function doToggleShowcase(enabled) {
+    try {
+      await api('/agent/autoshowcase', { enabled });
+      showToast(enabled ? '✓ Showcase automático activado' : '✓ Showcase automático desactivado');
+    } catch(e) {
+      showToast('Error al cambiar toggle', true);
+      // Revertir visualmente si falla
+      document.getElementById('toggle-showcase').checked = !enabled;
+    }
+  }
+
   // ---- Status check ----
   async function checkStatus() {
     try {
-      const r = await fetch('/ctrl/command', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'ping'}) });
+      const r = await fetch('/agent/status');
       if (r.ok) {
+        const data = await r.json();
         document.getElementById('status-dot').style.background = '#22c55e';
         document.getElementById('status-text').textContent = 'Avatar conectado — Live activo';
+        // Sincronizar estado del toggle con el servidor
+        document.getElementById('toggle-showcase').checked = data.autoShowcaseEnabled !== false;
       }
     } catch {
       document.getElementById('status-dot').style.background = '#f87171';
