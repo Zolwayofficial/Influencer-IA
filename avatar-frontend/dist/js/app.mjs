@@ -1,21 +1,41 @@
 import { TalkingHead } from 'talkinghead';
 
+// Emociones → gradientes CSS de fondo (fallback sin SD)
+const EMOTION_BACKGROUNDS = {
+  neutral:   'linear-gradient(135deg, #0d0d1a 0%, #111127 40%, #0a0a18 100%)',
+  happy:     'linear-gradient(135deg, #1a1200 0%, #2a1e00 40%, #150f00 100%)',
+  excited:   'linear-gradient(135deg, #1a0800 0%, #2d1000 40%, #180500 100%)',
+  surprised: 'linear-gradient(135deg, #001520 0%, #001f30 40%, #000f1a 100%)',
+  thinking:  'linear-gradient(135deg, #050520 0%, #08083a 40%, #030318 100%)',
+};
+
+const BG_ROTATE_INTERVAL = 3 * 60 * 1000; // rotar fondo cada 3 minutos
+
 class InfluencerApp {
   constructor() {
     this.head = null;
     this.ws = null;
     this.reconnectDelay = 3000;
     this.maxChatMessages = 25;
+    this.currentEmotion = 'neutral';
+
+    // Background system
+    this.sdBackgrounds = [];  // URLs de fondos generados por Stable Diffusion
+    this.bgIndex = 0;
+    this.bgRotateTimer = null;
 
     // DOM refs
-    this.productOverlay = document.getElementById('product-overlay');
-    this.productName = document.getElementById('product-name');
-    this.productPrice = document.getElementById('product-price');
-    this.productImage = document.getElementById('product-image');
+    this.productOverlay  = document.getElementById('product-overlay');
+    this.productName     = document.getElementById('product-name');
+    this.productPrice    = document.getElementById('product-price');
+    this.productImage    = document.getElementById('product-image');
     this.productFeatures = document.getElementById('product-features');
-    this.chatMessages = document.getElementById('chat-messages');
+    this.chatMessages    = document.getElementById('chat-messages');
     this.statusIndicator = document.getElementById('status-indicator');
-    this.statusText = document.getElementById('status-text');
+    this.statusText      = document.getElementById('status-text');
+    this.aiBg            = document.getElementById('ai-background');
+    this.ambientFx       = document.getElementById('ambient-fx');
+    this.avatarEl        = document.getElementById('avatar');
   }
 
   async init() {
@@ -45,15 +65,109 @@ class InfluencerApp {
         null
       );
 
-      this.setStatus('connected', 'Avatar listo');
+        this.setStatus('connected', 'Avatar listo');
+      this.applyEmotionEffects('neutral');
 
     } catch (err) {
       console.error('Error inicializando avatar:', err);
       this.setStatus('error', 'Error cargando avatar: ' + err.message);
     }
 
+    // Sistema de fondos AI (async — no bloquea el arranque)
+    this.initBackgroundSystem();
+
     // Conectar WebSocket independientemente del estado del avatar
     this.connectWebSocket();
+  }
+
+  // ---------------------------------------------------------------------------
+  // FASE 4 — Efectos visuales por emocion
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Aplica efectos visuales (ambient light + CSS filter en avatar) segun emocion.
+   * Se llama en cada speak/speak_and_show con la emocion del mensaje.
+   */
+  applyEmotionEffects(emotion) {
+    const e = emotion || 'neutral';
+    if (e === this.currentEmotion) return;
+    this.currentEmotion = e;
+
+    // 1. Fondo CSS: solo si no hay fondos SD cargados
+    if (this.sdBackgrounds.length === 0 && this.aiBg) {
+      this.aiBg.style.background = EMOTION_BACKGROUNDS[e] || EMOTION_BACKGROUNDS.neutral;
+    }
+
+    // 2. Capa de luz ambient: clase CSS que define --ambient-color
+    if (this.ambientFx) {
+      this.ambientFx.className = `emotion-${e}`;
+      // Pulso extra para excited / surprised
+      if (e === 'excited' || e === 'surprised') {
+        this.ambientFx.classList.add('pulsing');
+        this.ambientFx.addEventListener('animationend', () => {
+          this.ambientFx.classList.remove('pulsing');
+        }, { once: true });
+      }
+    }
+
+    // 3. Filtro CSS sobre el canvas del avatar
+    if (this.avatarEl) {
+      this.avatarEl.className = `emotion-${e}`;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FASE 4 — Sistema de fondos AI (Stable Diffusion)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Carga la lista de fondos generados por Stable Diffusion.
+   * Si el servicio no esta disponible, usa los gradientes CSS como fallback.
+   */
+  async initBackgroundSystem() {
+    await this._loadSDBackgrounds();
+
+    // Rotar fondo cada BG_ROTATE_INTERVAL ms
+    this.bgRotateTimer = setInterval(() => this._rotateBackground(), BG_ROTATE_INTERVAL);
+  }
+
+  async _loadSDBackgrounds() {
+    try {
+      const res = await fetch('/backgrounds/list.json');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.backgrounds) && data.backgrounds.length > 0) {
+        this.sdBackgrounds = data.backgrounds;
+        this._applyBackground(this.sdBackgrounds[0]);
+        console.log(`[BG] ${this.sdBackgrounds.length} fondos SD cargados`);
+      }
+    } catch {
+      // SD no disponible — se usan gradientes CSS por emocion (ya aplicados)
+    }
+  }
+
+  _rotateBackground() {
+    if (this.sdBackgrounds.length === 0) {
+      // Sin fondos SD: re-aplicar gradiente de emocion actual
+      if (this.aiBg) {
+        this.aiBg.style.background = EMOTION_BACKGROUNDS[this.currentEmotion] || EMOTION_BACKGROUNDS.neutral;
+      }
+      // Intentar recargar fondos SD por si ya se generaron
+      this._loadSDBackgrounds();
+      return;
+    }
+    this.bgIndex = (this.bgIndex + 1) % this.sdBackgrounds.length;
+    this._applyBackground(this.sdBackgrounds[this.bgIndex]);
+  }
+
+  _applyBackground(url) {
+    if (!this.aiBg || !url) return;
+    this.aiBg.classList.add('fading');
+    this.aiBg.addEventListener('animationend', () => {
+      this.aiBg.style.backgroundImage = `url('${url}')`;
+      this.aiBg.style.background = '';
+      this.aiBg.classList.remove('fading');
+    }, { once: true });
   }
 
   // --- WebSocket: recibe comandos del Chat Bridge / OpenClaw ---
@@ -94,7 +208,7 @@ class InfluencerApp {
     switch (msg.type) {
 
       case 'speak':
-        // TalkingHead maneja TTS + lip-sync internamente via HeadTTS
+        this.applyEmotionEffects(msg.emotion || 'neutral');
         await this.head.speakText(msg.text, {
           language: msg.language || 'es',
           avatarMood: msg.emotion || 'neutral',
@@ -130,7 +244,7 @@ class InfluencerApp {
         break;
 
       case 'speak_and_show':
-        // Mostrar producto y hablar de el simultaneamente
+        this.applyEmotionEffects('excited');
         this.showProduct(msg.product);
         try { await this.head.playAnimation('/animations/pointing.fbx'); }
         catch { /* pointing.fbx opcional */ }
@@ -138,6 +252,7 @@ class InfluencerApp {
           language: msg.language || 'es',
           avatarMood: 'excited',
         });
+        this.applyEmotionEffects('neutral');
         break;
 
       case 'set_mood':

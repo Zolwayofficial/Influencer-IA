@@ -17,6 +17,8 @@ volumes:
   openclaw_sessions:
   f5tts_models:
   mem0_data:
+  sd_models:
+  sd_backgrounds:
   portainer_data:
   uptime_data:
   prometheus_data:
@@ -422,6 +424,33 @@ services:
           memory: 7G
           cpus: '4'
 
+  stable-diffusion:
+    build: ./stable-diffusion
+    container_name: influencer-sd
+    volumes:
+      - sd_models:/app/models           # cache modelo SD (~4GB)
+      - sd_backgrounds:/app/backgrounds # fondos generados (compartido con nginx)
+    environment:
+      SD_MODEL:        runwayml/stable-diffusion-v1-5
+      STARTUP_COUNT:   "5"              # fondos al arrancar (5 × ~90s = ~7.5min)
+      REGEN_HOURS:     "4"              # nuevo fondo cada 4 horas
+      INFERENCE_STEPS: "20"            # calidad/velocidad CPU
+      OMP_NUM_THREADS: "4"
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:7860/health || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 600s                # primera descarga ~4GB puede tardar
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 7G
+          cpus: '4'
+
   # ===================
   # MEDIA SERVICES
   # ===================
@@ -432,6 +461,7 @@ services:
     volumes:
       - ./avatar-frontend/dist:/usr/share/nginx/html:ro
       - ./avatar-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - sd_backgrounds:/usr/share/nginx/html/backgrounds:ro  # fondos SD
     ports:
       - "8080:8080"
     networks:
