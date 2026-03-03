@@ -125,6 +125,8 @@ services:
       WEBHOOK_URL: https://n8n.${DOMAIN}/
       N8N_EDITOR_BASE_URL: https://n8n.${DOMAIN}/
       GENERIC_TIMEZONE: America/Mexico_City
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      NODE_FUNCTION_ALLOW_EXTERNAL: "*"
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
