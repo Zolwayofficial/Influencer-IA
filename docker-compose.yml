@@ -16,6 +16,7 @@ volumes:
   qdrant_data:
   openclaw_sessions:
   f5tts_models:
+  mem0_data:
   portainer_data:
   uptime_data:
   prometheus_data:
@@ -324,6 +325,7 @@ services:
       F5TTS_URL: http://f5-tts:8882
       CHAT_BRIDGE_HOST: chat-bridge
       CHAT_BRIDGE_PORT: 4000
+      MEM0_URL: http://mem0:6789
     networks:
       - influencer-net
     depends_on:
@@ -331,6 +333,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      mem0:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))\""]
       interval: 30s
@@ -356,6 +360,35 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  mem0:
+    build: ./mem0-server
+    container_name: influencer-mem0
+    volumes:
+      - mem0_data:/app/data             # SQLite history + HuggingFace cache (~90MB)
+    environment:
+      QDRANT_HOST:    qdrant
+      QDRANT_PORT:    "6333"
+      MEM0_COLLECTION: influencer_mem0
+      EMBED_MODEL:    all-MiniLM-L6-v2
+      DEFAULT_USER:   influencer
+    networks:
+      - influencer-net
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:6789/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s                # Primera vez descarga modelo ~90MB
     restart: unless-stopped
     deploy:
       resources:

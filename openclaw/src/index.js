@@ -12,6 +12,9 @@ const { chatCompletion, MODELS } = require('./router');
 const { searchProduct } = require('./skills/browser');
 const { showProduct   } = require('./skills/showcase');
 
+// Memoria persistente — Mem0 + Qdrant
+const { getContextForChat, saveInteraction } = require('./memory');
+
 const PORT = process.env.OC_GATEWAY_PORT || 3000;
 
 // ---------------------------------------------------------------------------
@@ -83,11 +86,19 @@ async function processChat(msg) {
   const userMessage = `[${msg.platform || 'unknown'}] ${msg.user || 'viewer'} (${msg.type || 'chat'}): ${msg.text}`;
   addToHistory('user', userMessage);
 
+  // Recuperar contexto de memoria relevante (best-effort, no bloquea si mem0 esta caido)
+  const memoryContext = await getContextForChat(msg.text || userMessage);
+
+  // Construir system prompt enriquecido con memoria
+  const fullSystem = memoryContext
+    ? `${systemPrompt}\n\n${memoryContext}`
+    : systemPrompt;
+
   let parsed;
 
   try {
     const raw = await chatCompletion(
-      [{ role: 'system', content: systemPrompt }, ...conversationHistory],
+      [{ role: 'system', content: fullSystem }, ...conversationHistory],
       { temperature: 0.8, maxTokens: 300 },
     );
 
@@ -102,6 +113,9 @@ async function processChat(msg) {
     console.error('[LLM] Error procesando mensaje:', err.message);
     return { action: 'ignore', error: err.message };
   }
+
+  // Guardar interaccion en memoria (async, no bloquea la respuesta)
+  saveInteraction(msg, parsed).catch(() => { /* best-effort */ });
 
   // -------------------------------------------------------------------------
   // Manejar action: show_product
