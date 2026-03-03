@@ -36,6 +36,8 @@ class InfluencerApp {
     this.aiBg            = document.getElementById('ai-background');
     this.ambientFx       = document.getElementById('ambient-fx');
     this.avatarEl        = document.getElementById('avatar');
+    this.productQrImg    = document.getElementById('product-qr-img');
+    this.productQrBox    = document.getElementById('product-qr');
   }
 
   async init() {
@@ -289,6 +291,13 @@ class InfluencerApp {
         li.textContent = feature;
         this.productFeatures.appendChild(li);
       });
+    }
+
+    if (product.qr_url && this.productQrImg) {
+      this.productQrImg.src = product.qr_url;
+      this.productQrBox.style.display = 'flex';
+    } else if (this.productQrBox) {
+      this.productQrBox.style.display = 'none';
     }
 
     this.productOverlay.style.display = 'block';

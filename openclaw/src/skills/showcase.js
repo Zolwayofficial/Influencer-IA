@@ -66,6 +66,12 @@ async function showProduct(product, speakText) {
 
   console.log(`[Showcase] Mostrando: ${product.name} @ ${product.price}`);
 
+  // Generar QR apuntando a la URL del producto (gratis, sin key)
+  const qrTarget = product.url || product.name || '';
+  const qrUrl    = qrTarget
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrTarget)}`
+    : null;
+
   await postCommand({
     type:    'speak_and_show',
     text,
@@ -75,6 +81,8 @@ async function showProduct(product, speakText) {
       price:    product.price    || '?',
       image:    product.image    || null,
       features: (product.features || []).slice(0, 4),
+      qr_url:   qrUrl,
+      url:      product.url      || null,
     },
   });
 
