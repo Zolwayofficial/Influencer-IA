@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Control del Avatar</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    /* ---- LOGIN ---- */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+    }
+    #login-screen h1 { font-size: 1.4rem; color: #a78bfa; }
+    #pin-input {
+      font-size: 2rem;
+      letter-spacing: 0.5rem;
+      text-align: center;
+      background: #1a1a1a;
+      border: 2px solid #333;
+      border-radius: 12px;
+      color: #fff;
+      padding: 12px 20px;
+      width: 200px;
+    }
+    #login-btn {
+      background: #7c3aed;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 40px;
+      font-size: 1rem;
+      cursor: pointer;
+      width: 200px;
+    }
+    #login-error { color: #f87171; font-size: 0.9rem; display: none; }
+
+    /* ---- PANEL ---- */
+    #panel { display: none; max-width: 480px; margin: 0 auto; }
+
+    h2 { font-size: 1rem; color: #a78bfa; margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Status bar */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1a1a1a;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: #888;
+    }
+    #status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+
+    /* Sección hablar */
+    textarea {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #fff;
+      padding: 12px;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Emociones */
+    .emotion-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .emotion-btn {
+      background: #1a1a1a;
+      border: 2px solid #333;
+      border-radius: 10px;
+      color: #ccc;
+      padding: 8px 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .emotion-btn.active {
+      border-color: #7c3aed;
+      background: #2d1b69;
+      color: #a78bfa;
+    }
+
+    /* Botones de accion */
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.75; }
+    .btn-purple { background: #7c3aed; color: #fff; }
+    .btn-green  { background: #059669; color: #fff; }
+    .btn-red    { background: #dc2626; color: #fff; }
+    .btn-gray   { background: #374151; color: #fff; }
+
+    /* Showcase */
+    #showcase-input {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #fff;
+      padding: 12px;
+      font-size: 0.95rem;
+    }
+
+    /* Feedback toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #22c55e;
+      color: #000;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.error { background: #f87171; }
+    #toast.show  { opacity: 1; }
+
+    /* Loading spinner on btn */
+    .btn.loading { opacity: 0.6; pointer-events: none; }
+
+    /* Divider */
+    hr { border: none; border-top: 1px solid #222; margin: 16px 0; }
+
+    /* Quick phrases */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .quick-btn {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #ccc;
+      padding: 10px 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-align: center;
+    }
+    .quick-btn:active { background: #2d1b69; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <h1>🎮 Control del Avatar</h1>
+  <input id="pin-input" type="password" maxlength="8" placeholder="PIN" autocomplete="off">
+  <button id="login-btn" onclick="doLogin()">Entrar</button>
+  <p id="login-error">PIN incorrecto</p>
+</div>
+
+<!-- PANEL PRINCIPAL -->
+<div id="panel">
+
+  <div id="status-bar">
+    <div id="status-dot"></div>
+    <span id="status-text">Avatar conectado — Live activo</span>
+  </div>
+
+  <!-- HABLAR -->
+  <h2>💬 Hacer hablar</h2>
+  <textarea id="speak-text" placeholder="Escribe lo que dirá el avatar..."></textarea>
+
+  <div class="emotion-grid">
+    <div class="emotion-btn active" data-e="happy"    onclick="setEmotion(this)">😊 Feliz</div>
+    <div class="emotion-btn"        data-e="excited"  onclick="setEmotion(this)">🤩 Emoción</div>
+    <div class="emotion-btn"        data-e="neutral"  onclick="setEmotion(this)">😐 Neutral</div>
+    <div class="emotion-btn"        data-e="surprised" onclick="setEmotion(this)">😮 Sorpresa</div>
+    <div class="emotion-btn"        data-e="sad"      onclick="setEmotion(this)">😢 Triste</div>
+  </div>
+
+  <button class="btn btn-purple" onclick="doSpeak()">▶ Hablar ahora</button>
+
+  <!-- FRASES RAPIDAS -->
+  <h2>⚡ Frases rápidas</h2>
+  <div class="quick-grid">
+    <div class="quick-btn" onclick="quickSpeak('¡Bienvenidos al live! Estoy aquí para ustedes.')">👋 Bienvenida</div>
+    <div class="quick-btn" onclick="quickSpeak('¡Síganme para más contenido de calidad!')">➕ Pedir follow</div>
+    <div class="quick-btn" onclick="quickSpeak('¡Gracias por el regalo! Los quiero mucho.')">🎁 Agradecer regalo</div>
+    <div class="quick-btn" onclick="quickSpeak('¡Comenten sus preguntas! Las respondo todas.')">❓ Pedir preguntas</div>
+    <div class="quick-btn" onclick="quickSpeak('Vamos a ver los mejores productos del momento. ¡No se vayan!')">🛍️ Iniciar productos</div>
+    <div class="quick-btn" onclick="quickSpeak('¡Nos vemos en el próximo live! Hasta pronto.')">👋 Despedida</div>
+  </div>
+
+  <hr>
+
+  <!-- MOSTRAR PRODUCTO -->
+  <h2>🛒 Mostrar producto</h2>
+  <input id="showcase-input" type="text" placeholder="ej: auriculares bluetooth baratos">
+  <button class="btn btn-green" onclick="doShowcase()">🔍 Buscar y mostrar en pantalla</button>
+  <button class="btn btn-gray"  onclick="doHideProduct()" style="margin-top:6px">✕ Ocultar overlay</button>
+
+  <hr>
+
+  <!-- CONTROL LIVE -->
+  <h2>⚙️ Control del live</h2>
+  <button class="btn btn-gray" onclick="doReset()">🗑️ Limpiar historial de conversación</button>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  // PIN de acceso — cámbialo cuando quieras
+  const CORRECT_PIN = '1234';
+
+  let selectedEmotion = 'happy';
+
+  // ---- Login ----
+  document.getElementById('pin-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  function doLogin() {
+    const pin = document.getElementById('pin-input').value;
+    if (pin === CORRECT_PIN) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('panel').style.display = 'block';
+      checkStatus();
+    } else {
+      document.getElementById('login-error').style.display = 'block';
+      document.getElementById('pin-input').value = '';
+    }
+  }
+
+  // ---- Emociones ----
+  function setEmotion(el) {
+    document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    selectedEmotion = el.dataset.e;
+  }
+
+  // ---- Hablar ----
+  async function doSpeak() {
+    const text = document.getElementById('speak-text').value.trim();
+    if (!text) return showToast('Escribe algo primero', true);
+    const btn = event.currentTarget;
+    btn.classList.add('loading');
+    try {
+      await api('/ctrl/command', {
+        type: 'speak',
+        text,
+        emotion: selectedEmotion
+      });
+      showToast('✓ Hablando...');
+      document.getElementById('speak-text').value = '';
+    } catch(e) {
+      showToast('Error: ' + e.message, true);
+    } finally {
+      btn.classList.remove('loading');
+    }
+  }
+
+  function quickSpeak(text) {
+    document.getElementById('speak-text').value = text;
+    doSpeak();
+  }
+
+  // ---- Showcase ----
+  async function doShowcase() {
+    const query = document.getElementById('showcase-input').value.trim();
+    if (!query) return showToast('Escribe un producto primero', true);
+    const btn = event.currentTarget;
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Buscando...';
+    try {
+      await api('/agent/showcase', { query });
+      showToast('✓ Buscando y mostrando producto...');
+      document.getElementById('showcase-input').value = '';
+    } catch(e) {
+      showToast('Error: ' + e.message, true);
+    } finally {
+      btn.classList.remove('loading');
+      btn.textContent = '🔍 Buscar y mostrar en pantalla';
+    }
+  }
+
+  async function doHideProduct() {
+    try {
+      await api('/ctrl/command', { type: 'hide_product' });
+      showToast('✓ Overlay oculto');
+    } catch(e) {
+      showToast('Error', true);
+    }
+  }
+
+  // ---- Reset ----
+  async function doReset() {
+    if (!confirm('¿Borrar historial de conversación?')) return;
+    try {
+      await api('/agent/reset', {});
+      showToast('✓ Historial borrado');
+    } catch(e) {
+      showToast('Error', true);
+    }
+  }
+
+  // ---- Status check ----
+  async function checkStatus() {
+    try {
+      const r = await fetch('/ctrl/command', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'ping'}) });
+      if (r.ok) {
+        document.getElementById('status-dot').style.background = '#22c55e';
+        document.getElementById('status-text').textContent = 'Avatar conectado — Live activo';
+      }
+    } catch {
+      document.getElementById('status-dot').style.background = '#f87171';
+      document.getElementById('status-text').textContent = 'Sin conexión con el avatar';
+    }
+  }
+
+  // ---- Utils ----
+  async function api(path, body) {
+    const r = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
