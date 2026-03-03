@@ -169,7 +169,7 @@ app.post('/webhook/chat', async (req, res) => {
 });
 
 // Comando manual: hacer que el avatar hable
-app.post('/api/speak', (_req, res) => {
+app.post('/api/speak', (req, res) => {
   const { text, emotion, language } = req.body;
   res.json({
     action:   'speak',
@@ -187,7 +187,7 @@ app.post('/api/showcase', async (req, res) => {
   res.json({ status: 'searching', query });
 
   // Ejecutar showcase en background
-  _handleProductShowcase(query, null).catch(err => {
+  _handleProductShowcase(query).catch(err => {
     console.error('[API/showcase] Error:', err.message);
   });
 });
