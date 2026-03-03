@@ -20,90 +20,69 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://openclaw:3000/webhook/task",
-        "sendBody": true,
-        "bodyParameters": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
           "parameters": [
             {
-              "name": "task",
-              "value": "research_products"
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.GROQ_API_KEY }}"
             },
             {
-              "name": "instructions",
-              "value": "Investiga los 5 productos mas trending en tecnologia en Amazon.com hoy. Para cada uno obtiene: nombre, precio, rating, imagen, y una descripcion breve de por que es popular. Guarda los resultados."
-            },
-            {
-              "name": "model",
-              "value": "default"
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
-        }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'compound-beta', messages: [{ role: 'system', content: 'Eres un experto en comercio electronico y tendencias de productos de importacion.' }, { role: 'user', content: 'Busca en internet los 5 productos mas trending en tecnologia y gadgets de hoy que se puedan importar desde China o comprar en Amazon a buen precio. Para cada producto devuelve un JSON array con los campos: name (string), price (string con simbolo de moneda), price_usd (number), image (url de imagen del producto), features (array de exactamente 3 strings con caracteristicas clave en espanol), rating (string como \"4.5/5\"), store (nombre de tienda: Amazon/AliExpress/Temu/etc), url (url del producto). Responde SOLO con el JSON array valido, sin texto adicional ni markdown.' }], stream: false }) }}"
       },
-      "name": "OpenClaw: Investigar Productos",
+      "name": "Groq: Investigar Productos",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [500, 300],
-      "notes": "OpenClaw usa el skill browser-research para navegar Amazon y extraer datos"
+      "notes": "compound-beta tiene web search integrado — busca productos reales en tiempo real sin necesidad de Playwright ni browser-service"
     },
     {
       "parameters": {
-        "amount": 120,
-        "unit": "seconds"
+        "jsCode": "const response = $input.first().json;\nconst content = response.choices[0].message.content;\n\nlet products = [];\ntry {\n  // Limpiar markdown si viene envuelto en ```json ... ```\n  const clean = content.replace(/```json\\n?|```/g, '').trim();\n  products = JSON.parse(clean);\n} catch (e) {\n  // Si no se puede parsear, guardar como error\n  products = [{ name: 'Error al parsear respuesta', error: e.message, raw: content.substring(0, 500) }];\n}\n\nconst date = new Date().toISOString().split('T')[0];\nconsole.log(`[ProductResearch] ${date}: ${products.length} productos encontrados`);\n\nreturn [{ json: { products, count: products.length, date } }];"
       },
-      "name": "Esperar Investigacion",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [720, 300],
-      "notes": "La investigacion toma ~2 min (navegacion + extraccion)"
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "http://openclaw:3000/api/tasks/latest",
-        "options": {}
-      },
-      "name": "Obtener Resultados",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [940, 300]
+      "name": "Parsear Productos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
     },
     {
       "parameters": {
         "operation": "insert",
         "table": "daily_products",
-        "columns": "date,products_json,created_at",
-        "values": "={{ $now.format('yyyy-MM-dd') }},={{ JSON.stringify($json.results) }},={{ $now.toISO() }}"
+        "columns": "date,products_json,count,created_at",
+        "values": "={{ $json.date }},={{ JSON.stringify($json.products) }},={{ $json.count }},={{ $now.toISO() }}"
       },
       "name": "Guardar en PostgreSQL",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1160, 300],
-      "notes": "Requiere crear la tabla daily_products en PostgreSQL"
+      "position": [940, 300],
+      "notes": "Crear tabla antes de activar: CREATE TABLE IF NOT EXISTS daily_products (id SERIAL PRIMARY KEY, date DATE UNIQUE, products_json TEXT, count INT, created_at TIMESTAMPTZ DEFAULT NOW());"
     }
   ],
   "connections": {
     "Cada dia a las 9AM": {
       "main": [
         [
-          { "node": "OpenClaw: Investigar Productos", "type": "main", "index": 0 }
+          { "node": "Groq: Investigar Productos", "type": "main", "index": 0 }
         ]
       ]
     },
-    "OpenClaw: Investigar Productos": {
+    "Groq: Investigar Productos": {
       "main": [
         [
-          { "node": "Esperar Investigacion", "type": "main", "index": 0 }
+          { "node": "Parsear Productos", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Esperar Investigacion": {
-      "main": [
-        [
-          { "node": "Obtener Resultados", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "Obtener Resultados": {
+    "Parsear Productos": {
       "main": [
         [
           { "node": "Guardar en PostgreSQL", "type": "main", "index": 0 }
