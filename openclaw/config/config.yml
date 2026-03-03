@@ -5,28 +5,32 @@
 gateway:
   port: 3000
 
-# --- Modelos IA ---
+# --- Modelos IA (Groq) ---
+# Todos usan la misma API key, distinto modelo por tier.
 models:
-  # Modelo por defecto: Qwen API via DashScope (rapido, barato)
+  # Tier 1 — Chat rapido: llama-3.1-8b-instant
+  # 14,400 req/dia | 1M tokens/min | respuesta en ~200ms
   default:
-    provider: openai-compatible
-    model: ${LLM_MODEL:-qwen-plus}
-    endpoint: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
-    apiKey: ${DASHSCOPE_API_KEY}
+    provider: groq
+    model: llama-3.1-8b-instant
+    endpoint: https://api.groq.com/openai/v1
+    apiKey: ${GROQ_API_KEY}
 
-  # Modelo de vision: Qwen-VL para analisis de imagenes/productos
+  # Tier 2 — Research con web search: compound-beta
+  # 250 req/dia | tokens ILIMITADOS/dia | busqueda web integrada
+  research:
+    provider: groq
+    model: compound-beta
+    endpoint: https://api.groq.com/openai/v1
+    apiKey: ${GROQ_API_KEY}
+
+  # Tier 3 — Vision: llama-4-scout (analisis de imagenes/capturas)
+  # 1,000 req/dia | 30K tokens/min | multimodal
   vision:
-    provider: openai-compatible
-    model: qwen-vl-max
-    endpoint: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
-    apiKey: ${DASHSCOPE_API_KEY}
-
-  # Modelo complejo: Para razonamiento avanzado (opcional, usa DashScope si no hay OpenAI)
-  complex:
-    provider: openai-compatible
-    model: ${COMPLEX_MODEL:-qwen-max}
-    endpoint: ${COMPLEX_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
-    apiKey: ${COMPLEX_API_KEY:-${DASHSCOPE_API_KEY}}
+    provider: groq
+    model: meta-llama/llama-4-scout-17b-16e-instruct
+    endpoint: https://api.groq.com/openai/v1
+    apiKey: ${GROQ_API_KEY}
 
 # --- Memoria Vectorial ---
 memory:
