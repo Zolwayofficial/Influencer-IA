@@ -15,7 +15,7 @@ volumes:
   n8n_data:
   qdrant_data:
   openclaw_sessions:
-  headtts_cache:
+  f5tts_models:
   portainer_data:
   uptime_data:
   prometheus_data:
@@ -314,16 +314,16 @@ services:
       - ./cookies:/app/cookies
     environment:
       OC_GATEWAY_PORT: 3000
-      OC_DEFAULT_MODEL_PROVIDER: openai-compatible
-      OC_DEFAULT_MODEL: ${LLM_MODEL:-qwen-plus}
-      OC_OPENAI_BASE_URL: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
-      OC_OPENAI_API_KEY: ${DASHSCOPE_API_KEY}
+      # LLM: Groq multi-tier (Tier1=chat, Tier2=research+web, Tier3=vision)
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      # Memoria vectorial
       OC_QDRANT_URL: http://qdrant:6333
       OC_QDRANT_COLLECTION: influencer_memory
-      EXTERNAL_API_URL: ${LLM_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
-      EXTERNAL_API_KEY: ${DASHSCOPE_API_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-none}
       REDIS_URL: redis://redis:6379
+      # TTS
+      F5TTS_URL: http://f5-tts:8882
+      CHAT_BRIDGE_HOST: chat-bridge
+      CHAT_BRIDGE_PORT: 4000
     networks:
       - influencer-net
     depends_on:
@@ -341,7 +341,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
           cpus: '2'
 
   qdrant:
@@ -363,25 +363,31 @@ services:
           memory: 2G
           cpus: '1'
 
-  headtts:
-    build: ./headtts
-    container_name: influencer-headtts
+  f5-tts:
+    build: ./f5-tts
+    container_name: influencer-f5tts
     volumes:
-      - headtts_cache:/app/.cache/huggingface
+      - f5tts_models:/app/models        # cache del modelo F5-TTS (~300MB)
+      - ./f5-tts/voices:/app/voices     # muestras de voz para clonacion
+    environment:
+      VOICES_DIR: /app/voices
+      MODELS_DIR: /app/models
+      DEFAULT_VOICE: reference
+      NFE_STEP: "16"                    # 8=rapido, 16=balance, 32=calidad maxima
     networks:
       - influencer-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8882 || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8882/health || exit 1"]
       interval: 60s
       timeout: 15s
       retries: 5
-      start_period: 120s
+      start_period: 180s                # Primera vez descarga modelo ~300MB
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 4G
-          cpus: '2'
+          memory: 7G
+          cpus: '4'
 
   # ===================
   # MEDIA SERVICES

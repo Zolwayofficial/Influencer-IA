@@ -25,8 +25,8 @@ class InfluencerApp {
       const avatarEl = document.getElementById('avatar');
 
       this.head = new TalkingHead(avatarEl, {
-        ttsEndpoint: null,
-        lipsyncModules: ['en'],
+        ttsEndpoint: '/tts/api/tts',   // F5-TTS via nginx proxy
+        lipsyncModules: ['es', 'en'],  // español primero
         cameraView: 'upper',
         cameraRotateEnable: false,
         cameraZoomEnable: false,
