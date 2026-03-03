@@ -36,6 +36,7 @@ QDRANT_PORT    = int(os.environ.get("QDRANT_PORT", "6333"))
 COLLECTION     = os.environ.get("MEM0_COLLECTION", "influencer_mem0")
 DEFAULT_USER   = os.environ.get("DEFAULT_USER",    "influencer")
 EMBED_MODEL    = os.environ.get("EMBED_MODEL",     "all-MiniLM-L6-v2")
+GROQ_API_KEY   = os.environ.get("GROQ_API_KEY",    "")
 
 # ---------------------------------------------------------------------------
 # Estado global
@@ -51,6 +52,13 @@ def _init_mem0():
         from mem0 import Memory
 
         config = {
+            "llm": {
+                "provider": "groq",
+                "config": {
+                    "model":   "llama-3.1-8b-instant",
+                    "api_key": GROQ_API_KEY,
+                },
+            },
             "vector_store": {
                 "provider": "qdrant",
                 "config": {
