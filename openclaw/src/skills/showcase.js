@@ -108,4 +108,4 @@ function _buildSpeakText(product) {
   return `Miren esto! ${name} por solo ${price}.${extra} Que opinan en el chat?`;
 }
 
-module.exports = { showProduct };
+module.exports = { showProduct, sendCommand: postCommand };

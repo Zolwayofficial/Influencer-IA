@@ -11,8 +11,9 @@ const multer  = require('multer');
 const { chatCompletion, MODELS } = require('./router');
 
 // Skills
-const { searchProduct } = require('./skills/browser');
-const { showProduct   } = require('./skills/showcase');
+const { searchProduct }                          = require('./skills/browser');
+const { showProduct   }                          = require('./skills/showcase');
+const { calculateImport, formatQuotationSpeech } = require('./skills/quotation');
 
 // Memoria persistente — Mem0 + Qdrant
 const { getContextForChat, saveInteraction } = require('./memory');
@@ -49,21 +50,27 @@ ${(identity.rules || []).map(r => `- ${r}`).join('\n')}
 
 IMPORTANTE: Responde SIEMPRE en formato JSON valido con esta estructura exacta:
 {
-  "action": "speak" | "show_product" | "ignore",
+  "action": "speak" | "show_product" | "get_quotation" | "ignore",
   "text": "Lo que dira el avatar (1-3 oraciones cortas, en español)",
   "emotion": "neutral" | "happy" | "excited" | "surprised" | "thinking",
-  "query": "(solo si action es show_product) URL o termino de busqueda del producto"
+  "query": "(solo si show_product o get_quotation) URL o termino de busqueda del producto",
+  "quantity": 1
 }
 
 Cuando usar cada action:
-- "speak"        : respuesta normal al chat
-- "show_product" : cuando alguien pide ver/mostrar/precio de un producto especifico
-                   Incluir "query" con la URL o nombre del producto.
-- "ignore"       : spam, irrelevante, repetido, sin contexto
+- "speak"         : respuesta normal al chat
+- "show_product"  : cuando alguien pide ver/mostrar un producto especifico
+                    Incluir "query" con la URL o nombre del producto.
+- "get_quotation" : cuando alguien pregunta cuanto cuesta importar, precio en Peru,
+                    cuanto sale traer, cuanto es el costo total, precio Lima, etc.
+                    Incluir "query" con el nombre del producto y "quantity" si especifica cantidad.
+- "ignore"        : spam, irrelevante, repetido, sin contexto
 
-Ejemplos de show_product:
-  Chat: "muestra ese auricular de Amazon" → action: show_product, query: "auriculares bluetooth Amazon"
-  Chat: "cuanto cuesta este: amazon.com/dp/B09..." → action: show_product, query: "amazon.com/dp/B09..."
+Ejemplos:
+  "muestra ese auricular"  → show_product, query: "auriculares bluetooth Amazon"
+  "cuanto cuesta el iPhone 15 en Peru" → get_quotation, query: "iPhone 15", quantity: 1
+  "cuanto sale traer 10 auriculares de China" → get_quotation, query: "auriculares bluetooth 1688", quantity: 10
+  "precio importar laptop gaming" → get_quotation, query: "laptop gaming", quantity: 1
 
 Si el mensaje no merece respuesta (spam, ofensivo, sin sentido), usa "action": "ignore".
 Para regalos y nuevos seguidores, siempre responde con emotion "surprised" o "excited".`;
@@ -141,11 +148,27 @@ async function processChat(msg) {
       console.error('[OpenClaw] Error en showcase:', err.message);
     });
 
-    // Responder inmediatamente al chat-bridge con el speak de anticipacion
     return {
       action:  'speak',
       text:    parsed.text || 'Un momento, voy a buscar ese producto!',
       emotion: parsed.emotion || 'excited',
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Manejar action: get_quotation
+  // -------------------------------------------------------------------------
+  if (parsed.action === 'get_quotation' && parsed.query) {
+    console.log(`[OpenClaw] get_quotation detectado, query: ${parsed.query} qty: ${parsed.quantity || 1}`);
+
+    _handleQuotation(parsed.query, parsed.quantity || 1).catch(err => {
+      console.error('[OpenClaw] Error en quotation:', err.message);
+    });
+
+    return {
+      action:  'speak',
+      text:    parsed.text || 'Un momento, calculo el costo de importacion!',
+      emotion: 'thinking',
     };
   }
 
@@ -165,8 +188,57 @@ async function _handleProductShowcase(query) {
     return;
   }
 
-  // speakText sera generado automaticamente en showcase.js si no se pasa
   await showProduct(product, null);
+}
+
+/**
+ * Flujo completo de cotización de importación (async, no bloquea processChat):
+ * 1. Busca precio del producto con compound-beta
+ * 2. Calcula costo de importación a Lima (SUNAT + flete)
+ * 3. Hace que el avatar diga el desglose en voz
+ */
+async function _handleQuotation(query, quantity) {
+  const { sendCommand } = require('./skills/showcase');
+
+  // 1. Buscar precio del producto
+  const product = await searchProduct(query);
+  if (!product.found || !product.price_usd) {
+    console.warn(`[Quotation] No se pudo obtener precio para: ${query}`);
+    await sendCommand({
+      type:    'speak',
+      text:    `No encontre el precio de ${query}. Intenta con una URL directa o nombre mas especifico.`,
+      emotion: 'neutral',
+    });
+    return;
+  }
+
+  // 2. Calcular importación
+  const q = calculateImport({
+    fobUsd:       product.price_usd,
+    weightKg:     product.weight_kg || 0.5,
+    productTitle: product.name || query,
+    quantity:     quantity || 1,
+  });
+
+  const speech = formatQuotationSpeech(q);
+  console.log(`[Quotation] ${product.name} — Landed: $${q.totalLandedUsd} USD | Ruta: ${q.route}`);
+
+  // 3. Avatar habla el desglose + muestra tarjeta de producto enriquecida
+  await showProduct(
+    {
+      ...product,
+      name:     product.name,
+      price:    `$${q.totalLandedUsd} USD en Lima (S/ ${q.totalLandedPen})`,
+      features: [
+        `FOB: $${q.fobUsd} USD`,
+        `Flete + seguro: $${(q.freightUsd + q.insuranceUsd).toFixed(2)} USD`,
+        q.totalTaxesUsd > 0 ? `Impuestos SUNAT: $${q.totalTaxesUsd} USD` : 'Sin impuestos (de minimis)',
+        `Ruta: ${q.route}`,
+        q.restriction !== 'NONE' ? `⚠️ Requiere: ${q.restriction}` : `Partida: ${q.hsCode}`,
+      ],
+    },
+    speech,
+  );
 }
 
 // ---------------------------------------------------------------------------

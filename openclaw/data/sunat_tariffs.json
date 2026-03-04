@@ -1,0 +1,178 @@
+[
+  {
+    "category": "Smartphones",
+    "keywords": ["smartphone", "iphone", "celular", "galaxy s", "pixel", "redmi", "xiaomi", "poco", "realme", "oppo"],
+    "hs_code": "8517.12.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "MTC_HOMOLOGATION",
+    "allow_traveler": true,
+    "traveler_fee": 100.0
+  },
+  {
+    "category": "Laptops & Notebooks",
+    "keywords": ["laptop", "notebook", "macbook", "chromebook", "ultrabook", "gaming laptop"],
+    "hs_code": "8471.30.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 150.0
+  },
+  {
+    "category": "Tablets",
+    "keywords": ["tablet", "ipad", "tab s", "fire hd", "lenovo tab"],
+    "hs_code": "8471.30.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 100.0
+  },
+  {
+    "category": "Smart Watches & Wearables",
+    "keywords": ["smartwatch", "apple watch", "garmin", "fitbit", "amazfit", "mi band", "wearable"],
+    "hs_code": "8517.62.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "MTC_HOMOLOGATION",
+    "allow_traveler": true,
+    "traveler_fee": 70.0
+  },
+  {
+    "category": "Headphones & Earbuds",
+    "keywords": ["headphone", "earbud", "audifono", "airpods", "audifonos", "earphone", "tws", "auricular"],
+    "hs_code": "8518.30.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 50.0
+  },
+  {
+    "category": "Video Game Consoles",
+    "keywords": ["playstation", "xbox", "nintendo switch", "console", "consola", "ps5", "ps4"],
+    "hs_code": "9504.50.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 100.0
+  },
+  {
+    "category": "Cameras & Photography",
+    "keywords": ["camera", "dslr", "mirrorless", "camara", "gopro", "action cam", "lente", "lens"],
+    "hs_code": "8525.80.20.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 100.0
+  },
+  {
+    "category": "Drones",
+    "keywords": ["drone", "dji", "quadcopter", "fpv", "mini drone"],
+    "hs_code": "8806.21.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "MTC_HOMOLOGATION",
+    "allow_traveler": false
+  },
+  {
+    "category": "Smart TV & Monitors",
+    "keywords": ["smart tv", "television", "monitor", "oled tv", "qled", "led tv", "pantalla"],
+    "hs_code": "8528.72.10.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": false
+  },
+  {
+    "category": "PC Components & GPU",
+    "keywords": ["gpu", "graphic card", "rtx", "rx 7", "placa de video", "cpu", "procesador", "ram", "ssd", "disco"],
+    "hs_code": "8473.30.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 70.0
+  },
+  {
+    "category": "Speakers & Audio",
+    "keywords": ["speaker", "parlante", "bocina", "altavoz", "soundbar", "subwoofer", "bluetooth speaker"],
+    "hs_code": "8518.22.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 50.0
+  },
+  {
+    "category": "Accessories & Peripherals",
+    "keywords": ["mouse", "keyboard", "teclado", "raton", "case", "funda", "cargador", "charger", "cable usb", "hub"],
+    "hs_code": "8473.50.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 30.0
+  },
+  {
+    "category": "Footwear",
+    "keywords": ["shoe", "sneaker", "zapatilla", "boot", "sandal", "nike", "adidas", "jordan"],
+    "hs_code": "6404.11.00.00",
+    "ad_valorem": 0.11,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 50.0
+  },
+  {
+    "category": "Apparel & Clothing",
+    "keywords": ["shirt", "pant", "jacket", "hoodie", "dress", "ropa", "camiseta", "polo", "jeans", "sudadera"],
+    "hs_code": "6109.10.00.00",
+    "ad_valorem": 0.11,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 30.0
+  },
+  {
+    "category": "Toys & Games",
+    "keywords": ["toy", "juguete", "lego", "figura", "muñeca", "rc car", "carrito", "peluche"],
+    "hs_code": "9503.00.00.00",
+    "ad_valorem": 0.0,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": true,
+    "traveler_fee": 30.0
+  },
+  {
+    "category": "Beauty & Cosmetics",
+    "keywords": ["perfume", "crema", "serum", "maquillaje", "lipstick", "fragrance", "cosmetico", "skincare"],
+    "hs_code": "3303.00.00.00",
+    "ad_valorem": 0.06,
+    "isc": 0.0,
+    "restriction": "DIGESA",
+    "allow_traveler": true,
+    "traveler_fee": 30.0
+  },
+  {
+    "category": "Power Tools & Equipment",
+    "keywords": ["taladro", "drill", "sierra", "amoladora", "grinder", "herramienta", "tool", "compresor"],
+    "hs_code": "8467.11.00.00",
+    "ad_valorem": 0.06,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": false
+  },
+  {
+    "category": "Default / General",
+    "keywords": [],
+    "hs_code": "9999.99.99.99",
+    "ad_valorem": 0.06,
+    "isc": 0.0,
+    "restriction": "NONE",
+    "allow_traveler": false
+  }
+]
