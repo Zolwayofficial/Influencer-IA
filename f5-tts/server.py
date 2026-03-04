@@ -219,7 +219,7 @@ async def _handle_tts(request: Request) -> Response:
         ogg_bytes = await asyncio.get_event_loop().run_in_executor(None, _wav_to_ogg, wav_bytes)
         audio_b64 = base64.b64encode(ogg_bytes).decode("utf-8")
 
-    return JSONResponse({"audioContent": audio_b64})
+    return JSONResponse({"audioContent": audio_b64, "timepoints": []})
 
 
 @app.post("/tts")
