@@ -1,19 +1,14 @@
 """
 F5-TTS Server — Influencer 3D Powerhouse
-Puerto 8882 (compatible con el slot de HeadTTS en nginx)
+Puerto 8882
+
+Modos TTS:
+  TTS_ENGINE=edge  (default) — edge-tts: Microsoft neural, instantaneo, gratis
+  TTS_ENGINE=f5             — F5-TTS: voice cloning, lento en CPU
 
 Endpoints:
-  POST /tts         — Sintetiza texto → devuelve JSON Google TTS compatible
-  POST /api/tts     — Alias (compatible con TalkingHead ttsEndpoint)
-  GET  /health      — Estado del servicio y modelo
-  GET  /voices      — Lista voces disponibles
-
-Formato de entrada (compatible con TalkingHead):
-  { "input": {"text": "..."}, "voice": {...}, "audioConfig": {"audioEncoding": "OGG-OPUS"} }
-  O formato simple: { "text": "..." }
-
-Formato de salida (Google TTS compatible):
-  { "audioContent": "<base64 OGG-OPUS>" }
+  POST /api/tts  — Google TTS compatible (TalkingHead)
+  GET  /health
 """
 
 import asyncio
@@ -34,9 +29,11 @@ from fastapi.responses import JSONResponse, Response
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-VOICES_DIR   = Path(os.environ.get("VOICES_DIR",   "/app/voices"))
-MODELS_DIR   = Path(os.environ.get("MODELS_DIR",   "/app/models"))
-DEFAULT_VOICE = os.environ.get("DEFAULT_VOICE", "reference")
+VOICES_DIR    = Path(os.environ.get("VOICES_DIR",    "/app/voices"))
+MODELS_DIR    = Path(os.environ.get("MODELS_DIR",    "/app/models"))
+DEFAULT_VOICE = os.environ.get("DEFAULT_VOICE",  "reference")
+TTS_ENGINE    = os.environ.get("TTS_ENGINE",     "edge")   # "edge" | "f5"
+EDGE_VOICE    = os.environ.get("EDGE_VOICE",     "es-ES-ElviraNeural")
 
 # Pasos de difusion: mas alto = mejor calidad, mas lento
 # CPU: usar 8-16 para velocidad razonable; GPU: 32 para maxima calidad
@@ -108,6 +105,17 @@ def _get_voice_files(voice_name: str):
         transcript = "Hola, bienvenidos a mi canal de productos de importacion."
 
     return wav_path, transcript
+
+
+async def _synthesize_edge(text: str) -> bytes:
+    """edge-tts: genera MP3 en <1s usando Microsoft Azure TTS gratuito."""
+    import edge_tts
+    communicate = edge_tts.Communicate(text, EDGE_VOICE)
+    audio = b""
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio += chunk["data"]
+    return audio  # MP3
 
 
 def _wav_to_ogg(wav_bytes: bytes) -> bytes:
@@ -195,13 +203,19 @@ async def _handle_tts(request: Request) -> Response:
 
     log.info(f"TTS request: voice={voice} speed={speed} text='{text[:60]}{'...' if len(text)>60 else ''}'")
 
-    async with _tts_lock:
-        loop = asyncio.get_event_loop()
-        wav_bytes = await loop.run_in_executor(None, _synthesize, text, voice, speed)
-
-    # Convertir WAV → OGG-OPUS y codificar en base64 (formato Google TTS)
-    ogg_bytes = await asyncio.get_event_loop().run_in_executor(None, _wav_to_ogg, wav_bytes)
-    audio_b64 = base64.b64encode(ogg_bytes).decode("utf-8")
+    if TTS_ENGINE == "edge":
+        # edge-tts: rapido, Microsoft neural, devuelve MP3 directamente
+        mp3_bytes = await _synthesize_edge(text)
+        audio_b64 = base64.b64encode(mp3_bytes).decode("utf-8")
+    else:
+        # F5-TTS: voice cloning, lento en CPU
+        if not model_ready:
+            raise HTTPException(status_code=503, detail="Modelo F5-TTS aun cargando.")
+        async with _tts_lock:
+            loop = asyncio.get_event_loop()
+            wav_bytes = await loop.run_in_executor(None, _synthesize, text, voice, speed)
+        ogg_bytes = await asyncio.get_event_loop().run_in_executor(None, _wav_to_ogg, wav_bytes)
+        audio_b64 = base64.b64encode(ogg_bytes).decode("utf-8")
 
     return JSONResponse({"audioContent": audio_b64})
 
