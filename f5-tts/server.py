@@ -118,7 +118,7 @@ def _synthesize(text: str, voice_name: str, speed: float) -> bytes:
         gen_text=text,
         speed=speed,
         nfe_step=NFE_STEP,
-        show_info=False,
+        show_info=lambda x: None,
     )
     elapsed = time.perf_counter() - t0
     duration = len(wav) / sr if sr > 0 else 0
