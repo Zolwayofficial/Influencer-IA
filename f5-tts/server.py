@@ -178,10 +178,12 @@ async def _handle_tts(request: Request) -> Response:
     Acepta formato Google TTS (TalkingHead) o formato simple.
     Devuelve JSON { audioContent: base64_ogg } compatible con TalkingHead.
     """
-    if model_error:
-        raise HTTPException(status_code=500, detail=f"Error en modelo TTS: {model_error}")
-    if not model_ready:
-        raise HTTPException(status_code=503, detail="Modelo cargando, intenta en unos segundos.")
+    # Para F5-TTS verificar que el modelo este listo (edge-tts no lo necesita)
+    if TTS_ENGINE != "edge":
+        if model_error:
+            raise HTTPException(status_code=500, detail=f"Error en modelo TTS: {model_error}")
+        if not model_ready:
+            raise HTTPException(status_code=503, detail="Modelo cargando, intenta en unos segundos.")
 
     try:
         body = await request.json()
