@@ -2,8 +2,10 @@
 
 const express = require('express');
 const fs      = require('fs');
+const os      = require('os');
 const yaml    = require('js-yaml');
 const path    = require('path');
+const multer  = require('multer');
 
 // LLM router — Groq 3-tier
 const { chatCompletion, MODELS } = require('./router');
@@ -234,6 +236,82 @@ app.get('/api/status', (_req, res) => {
 app.post('/api/reset', (_req, res) => {
   conversationHistory.length = 0;
   res.json({ status: 'history cleared' });
+});
+
+// ---------------------------------------------------------------------------
+// Knowledge upload — PDF, Excel, Word, TXT → Mem0
+// ---------------------------------------------------------------------------
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+app.post('/api/knowledge', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se recibio archivo.' });
+
+  const tmpPath = req.file.path;
+  const source  = req.file.originalname || 'upload';
+  const ext     = path.extname(source).toLowerCase();
+
+  let text = '';
+  try {
+    if (ext === '.txt' || ext === '.md') {
+      text = fs.readFileSync(tmpPath, 'utf8');
+
+    } else if (ext === '.pdf') {
+      const pdfParse = require('pdf-parse');
+      const buf = fs.readFileSync(tmpPath);
+      const data = await pdfParse(buf);
+      text = data.text;
+
+    } else if (ext === '.xlsx' || ext === '.xls') {
+      const XLSX = require('xlsx');
+      const wb = XLSX.readFile(tmpPath);
+      const lines = [];
+      wb.SheetNames.forEach(name => {
+        const ws  = wb.Sheets[name];
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        if (csv.trim()) lines.push(`[Hoja: ${name}]\n${csv}`);
+      });
+      text = lines.join('\n\n');
+
+    } else if (ext === '.docx' || ext === '.doc') {
+      const mammoth = require('mammoth');
+      const result  = await mammoth.extractRawText({ path: tmpPath });
+      text = result.value;
+
+    } else {
+      fs.unlinkSync(tmpPath);
+      return res.status(400).json({ error: 'Formato no soportado. Usa PDF, Excel, Word o TXT.' });
+    }
+
+    fs.unlinkSync(tmpPath);
+  } catch (err) {
+    try { fs.unlinkSync(tmpPath); } catch (_) {}
+    return res.status(500).json({ error: `Error al leer archivo: ${err.message}` });
+  }
+
+  if (!text.trim()) return res.json({ ok: true, source, chunks: 0 });
+
+  // Chunk text ~800 chars with 100-char overlap
+  const CHUNK = 800, OVERLAP = 100;
+  const chunks = [];
+  let pos = 0;
+  while (pos < text.length) {
+    chunks.push(text.slice(pos, pos + CHUNK));
+    pos += CHUNK - OVERLAP;
+  }
+
+  const { addMemory } = require('./memory');
+  let saved = 0;
+  for (const chunk of chunks) {
+    try {
+      await addMemory(chunk, 'influencer', { type: 'knowledge', source });
+      saved++;
+    } catch (err) {
+      console.error('[Knowledge] Error guardando chunk:', err.message);
+    }
+  }
+
+  console.log(`[Knowledge] ${source}: ${saved}/${chunks.length} chunks guardados en Mem0`);
+  res.json({ ok: true, source, chunks: saved });
 });
 
 // ---------------------------------------------------------------------------
