@@ -16,6 +16,7 @@ import base64
 import io
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -110,7 +111,10 @@ def _get_voice_files(voice_name: str):
 async def _synthesize_edge(text: str) -> bytes:
     """edge-tts: genera MP3 en <1s usando Microsoft Azure TTS gratuito."""
     import edge_tts
-    communicate = edge_tts.Communicate(text, EDGE_VOICE)
+    # Eliminar etiquetas SSML (<speak>, <mark>, etc.) — edge-tts las lee como texto literal
+    plain = re.sub(r"<[^>]+>", " ", text)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    communicate = edge_tts.Communicate(plain, EDGE_VOICE)
     audio = b""
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
