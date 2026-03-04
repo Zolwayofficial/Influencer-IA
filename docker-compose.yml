@@ -411,7 +411,9 @@ services:
       VOICES_DIR: /app/voices
       MODELS_DIR: /app/models
       DEFAULT_VOICE: reference
-      NFE_STEP: "16"                    # 8=rapido, 16=balance, 32=calidad maxima
+      NFE_STEP: "4"                     # 4=muy rapido, 8=rapido, 16=balance
+      TTS_ENGINE: "edge"               # edge=Microsoft neural (gratis, <1s) | f5=voice cloning (lento en CPU)
+      EDGE_VOICE: "es-PE-CamilaNeural" # Voz activa — ver lista en f5-tts/server.py
     networks:
       - influencer-net
     healthcheck:
