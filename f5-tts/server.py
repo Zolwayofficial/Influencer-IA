@@ -3,21 +3,30 @@ F5-TTS Server — Influencer 3D Powerhouse
 Puerto 8882 (compatible con el slot de HeadTTS en nginx)
 
 Endpoints:
-  POST /tts         — Sintetiza texto → devuelve WAV
+  POST /tts         — Sintetiza texto → devuelve JSON Google TTS compatible
   POST /api/tts     — Alias (compatible con TalkingHead ttsEndpoint)
   GET  /health      — Estado del servicio y modelo
   GET  /voices      — Lista voces disponibles
+
+Formato de entrada (compatible con TalkingHead):
+  { "input": {"text": "..."}, "voice": {...}, "audioConfig": {"audioEncoding": "OGG-OPUS"} }
+  O formato simple: { "text": "..." }
+
+Formato de salida (Google TTS compatible):
+  { "audioContent": "<base64 OGG-OPUS>" }
 """
 
 import asyncio
+import base64
 import io
 import logging
 import os
+import subprocess
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import numpy as np
 import soundfile as sf
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
@@ -101,6 +110,27 @@ def _get_voice_files(voice_name: str):
     return wav_path, transcript
 
 
+def _wav_to_ogg(wav_bytes: bytes) -> bytes:
+    """Convierte bytes WAV → bytes OGG-OPUS usando ffmpeg."""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_in:
+        tmp_in.write(wav_bytes)
+        tmp_in_path = tmp_in.name
+    tmp_out_path = tmp_in_path.replace(".wav", ".ogg")
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_in_path, "-c:a", "libopus", "-b:a", "64k", tmp_out_path],
+            capture_output=True, check=True, timeout=30
+        )
+        with open(tmp_out_path, "rb") as f:
+            return f.read()
+    finally:
+        for p in (tmp_in_path, tmp_out_path):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
 def _synthesize(text: str, voice_name: str, speed: float) -> bytes:
     """
     Ejecuta inferencia F5-TTS y devuelve bytes WAV.
@@ -135,7 +165,11 @@ def _synthesize(text: str, voice_name: str, speed: float) -> bytes:
 # ---------------------------------------------------------------------------
 
 async def _handle_tts(request: Request) -> Response:
-    """Logica comun para POST /tts y POST /api/tts."""
+    """
+    Logica comun para POST /tts y POST /api/tts.
+    Acepta formato Google TTS (TalkingHead) o formato simple.
+    Devuelve JSON { audioContent: base64_ogg } compatible con TalkingHead.
+    """
     if model_error:
         raise HTTPException(status_code=500, detail=f"Error en modelo TTS: {model_error}")
     if not model_ready:
@@ -146,26 +180,30 @@ async def _handle_tts(request: Request) -> Response:
     except Exception:
         raise HTTPException(status_code=400, detail="Body JSON invalido.")
 
-    text = body.get("text", "").strip()
+    # Aceptar formato Google TTS: { input: { text: "..." } }
+    # O formato simple: { text: "..." }
+    input_field = body.get("input", {})
+    text = (input_field.get("text") or input_field.get("ssml") or body.get("text", "")).strip()
     if not text:
-        raise HTTPException(status_code=400, detail="Campo 'text' requerido y no puede estar vacio.")
+        raise HTTPException(status_code=400, detail="Campo 'text' o 'input.text' requerido.")
 
     voice = body.get("voice", DEFAULT_VOICE)
+    if isinstance(voice, dict):
+        voice = DEFAULT_VOICE  # TalkingHead manda objeto, ignorar
     speed = float(body.get("speed", 1.0))
-    speed = max(0.5, min(speed, 2.0))  # clamp [0.5, 2.0]
+    speed = max(0.5, min(speed, 2.0))
 
     log.info(f"TTS request: voice={voice} speed={speed} text='{text[:60]}{'...' if len(text)>60 else ''}'")
 
-    # Serializar inferencias para evitar condiciones de carrera
     async with _tts_lock:
         loop = asyncio.get_event_loop()
         wav_bytes = await loop.run_in_executor(None, _synthesize, text, voice, speed)
 
-    return Response(
-        content=wav_bytes,
-        media_type="audio/wav",
-        headers={"X-Audio-Duration": "0"},
-    )
+    # Convertir WAV → OGG-OPUS y codificar en base64 (formato Google TTS)
+    ogg_bytes = await asyncio.get_event_loop().run_in_executor(None, _wav_to_ogg, wav_bytes)
+    audio_b64 = base64.b64encode(ogg_bytes).decode("utf-8")
+
+    return JSONResponse({"audioContent": audio_b64})
 
 
 @app.post("/tts")
