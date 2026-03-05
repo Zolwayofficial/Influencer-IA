@@ -34,8 +34,9 @@ const app = express();
 app.use(express.json());
 
 // --- FFmpeg args builder (SEGURO: sin shell=true) ---
-function buildFFmpegArgs(output, extraOutputArgs = []) {
-  return [
+// outputs: string (1 destino) o array de strings (tee muxer a múltiples destinos)
+function buildFFmpegArgs(outputs) {
+  const base = [
     // Input: captura X11
     '-f', 'x11grab',
     '-framerate', FPS,
@@ -50,7 +51,7 @@ function buildFFmpegArgs(output, extraOutputArgs = []) {
     '-tune', 'zerolatency',
     '-profile:v', 'high',
     '-level', '4.2',
-    '-g', String(parseInt(FPS) * 2), // keyframe cada 2 seg
+    '-g', String(parseInt(FPS) * 2),
     '-b:v', BITRATE,
     '-maxrate', BITRATE,
     '-bufsize', String(parseInt(BITRATE) * 2) + 'k',
@@ -59,18 +60,26 @@ function buildFFmpegArgs(output, extraOutputArgs = []) {
     '-b:a', '128k',
     '-ar', '44100',
     '-af', 'aresample=async=1',
-    // Extra args
-    ...extraOutputArgs,
-    // Output
-    output,
   ];
+
+  if (Array.isArray(outputs)) {
+    // Tee muxer: stream a múltiples destinos simultáneamente
+    const teeStr = outputs.map(u => `[f=flv]${u}`).join('|');
+    return [...base, '-f', 'tee', teeStr];
+  }
+  return [...base, '-f', 'flv', outputs];
 }
 
 // --- Streaming ---
-function startStreaming() {
+// tiktokRtmp: URL RTMP completa de TikTok (opcional)
+function startStreaming(tiktokRtmp) {
   if (isStreaming) return { error: 'Already streaming' };
 
-  const args = buildFFmpegArgs(RTMP_TARGET, ['-f', 'flv']);
+  const targets = tiktokRtmp
+    ? [RTMP_TARGET, tiktokRtmp]
+    : RTMP_TARGET;
+
+  const args = buildFFmpegArgs(targets);
   streamProcess = spawn('ffmpeg', args);
   isStreaming = true;
   streamStartTime = Date.now();
@@ -96,8 +105,9 @@ function startStreaming() {
     streamProcess = null;
   });
 
-  console.log(`[Stream] Iniciado -> ${RTMP_TARGET}`);
-  return { status: 'streaming', target: RTMP_TARGET };
+  const targets = tiktokRtmp ? [RTMP_TARGET, tiktokRtmp] : RTMP_TARGET;
+  console.log(`[Stream] Iniciado ->`, targets);
+  return { status: 'streaming', targets };
 }
 
 function stopStreaming() {
@@ -202,7 +212,7 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/api/stream/start', (req, res) => {
-  const result = startStreaming();
+  const result = startStreaming(req.body.tiktokRtmp);
   res.json(result);
 });
 
@@ -223,8 +233,9 @@ app.post('/api/record/stop', (req, res) => {
 
 // Iniciar stream + recording simultaneamente
 app.post('/api/go-live', (req, res) => {
-  const streamResult = startStreaming();
-  const recordResult = startRecording(req.body.filename);
+  const { tiktokRtmp, filename } = req.body;
+  const streamResult = startStreaming(tiktokRtmp);
+  const recordResult = startRecording(filename);
   res.json({ stream: streamResult, record: recordResult });
 });
 

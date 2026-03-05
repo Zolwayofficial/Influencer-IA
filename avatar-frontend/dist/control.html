@@ -202,6 +202,11 @@
       text-align: center;
     }
     .quick-btn:active { background: #2d1b69; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(1.3); }
+    }
   </style>
 </head>
 <body>
@@ -279,6 +284,22 @@
   <button class="btn btn-purple" onclick="doUploadKnowledge()" id="upload-btn" disabled>📤 Cargar al avatar</button>
   <div id="upload-status" style="font-size:0.85rem;color:#aaa;min-height:20px"></div>
 
+  <!-- INICIAR LIVE TIKTOK -->
+  <h2>🔴 Transmisión TikTok Live</h2>
+
+  <div id="stream-status-bar" style="display:flex;align-items:center;gap:8px;background:#1a1a1a;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:0.85rem;color:#888">
+    <div id="stream-dot" style="width:8px;height:8px;border-radius:50%;background:#374151;flex-shrink:0"></div>
+    <span id="stream-status-text">Sin transmisión activa</span>
+  </div>
+
+  <input id="tiktok-server" type="text" placeholder="Server URL — ej: rtmp://global-push.tiktok.com/live" style="width:100%;background:#1a1a1a;border:1px solid #333;border-radius:10px;color:#fff;padding:12px;font-size:0.85rem;margin-bottom:6px">
+  <input id="tiktok-key" type="text" placeholder="Stream Key (de TikTok Live Studio)" style="width:100%;background:#1a1a1a;border:1px solid #333;border-radius:10px;color:#fff;padding:12px;font-size:0.85rem;margin-bottom:6px">
+
+  <button class="btn btn-green" id="btn-go-live" onclick="doGoLive()">🔴 Iniciar Live en TikTok</button>
+  <button class="btn btn-red"   id="btn-stop-live" onclick="doStopLive()" style="display:none;margin-top:6px">⏹ Detener transmisión</button>
+
+  <hr>
+
   <h2>⚙️ Control del live</h2>
 
   <div class="toggle-row">
@@ -316,6 +337,8 @@
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('panel').style.display = 'block';
       checkStatus();
+      checkStreamStatus();
+      setInterval(checkStreamStatus, 10000);
     } else {
       document.getElementById('login-error').style.display = 'block';
       document.getElementById('pin-input').value = '';
@@ -479,6 +502,81 @@
       // Revertir visualmente si falla
       document.getElementById('toggle-showcase').checked = !enabled;
     }
+  }
+
+  // ---- TikTok Live ----
+  async function doGoLive() {
+    const server = document.getElementById('tiktok-server').value.trim();
+    const key    = document.getElementById('tiktok-key').value.trim();
+    if (!server || !key) return showToast('Ingresa Server URL y Stream Key', true);
+
+    const tiktokRtmp = `${server.replace(/\/$/, '')}/${key}`;
+    const btn = document.getElementById('btn-go-live');
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Iniciando...';
+    try {
+      const r = await fetch('/compositor/api/go-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tiktokRtmp })
+      });
+      const data = await r.json();
+      if (data.stream?.error) throw new Error(data.stream.error);
+      showToast('🔴 Live iniciado en TikTok');
+      setStreamActive(true);
+    } catch(e) {
+      showToast('Error: ' + e.message, true);
+      btn.classList.remove('loading');
+      btn.textContent = '🔴 Iniciar Live en TikTok';
+    }
+  }
+
+  async function doStopLive() {
+    const btn = document.getElementById('btn-stop-live');
+    btn.classList.add('loading');
+    try {
+      await fetch('/compositor/api/stop-all', { method: 'POST' });
+      showToast('⏹ Transmisión detenida');
+      setStreamActive(false);
+    } catch(e) {
+      showToast('Error: ' + e.message, true);
+    } finally {
+      btn.classList.remove('loading');
+    }
+  }
+
+  function setStreamActive(active) {
+    const dot  = document.getElementById('stream-dot');
+    const text = document.getElementById('stream-status-text');
+    const btnGo   = document.getElementById('btn-go-live');
+    const btnStop = document.getElementById('btn-stop-live');
+    if (active) {
+      dot.style.background = '#ef4444';
+      dot.style.animation  = 'pulse 1.5s infinite';
+      text.textContent = '🔴 EN VIVO — transmitiendo a TikTok';
+      btnGo.style.display  = 'none';
+      btnStop.style.display = '';
+      btnStop.classList.remove('loading');
+    } else {
+      dot.style.background = '#374151';
+      dot.style.animation  = '';
+      text.textContent = 'Sin transmisión activa';
+      btnGo.style.display  = '';
+      btnGo.classList.remove('loading');
+      btnGo.textContent = '🔴 Iniciar Live en TikTok';
+      btnStop.style.display = 'none';
+    }
+  }
+
+  // Polling: sincronizar estado real del compositor
+  async function checkStreamStatus() {
+    try {
+      const r = await fetch('/compositor/health');
+      if (r.ok) {
+        const data = await r.json();
+        setStreamActive(data.streaming === true);
+      }
+    } catch { /* compositor no disponible */ }
   }
 
   // ---- Status check ----
