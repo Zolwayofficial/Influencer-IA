@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Control — Influencer IA</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0d1a;
+      color: #e0e0f0;
+      min-height: 100vh;
+    }
+    header {
+      background: #111130;
+      border-bottom: 1px solid #2a2a50;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; color: #c0c0ff; }
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+    .dot.ok  { background: #4cff88; box-shadow: 0 0 6px #4cff88; }
+    .dot.err { background: #ff4c4c; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: #111130;
+      border: 1px solid #2a2a50;
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .card h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #7070aa;
+      margin-bottom: 14px;
+    }
+
+    label { font-size: 0.82rem; color: #9090c0; display: block; margin-bottom: 4px; }
+    input, textarea, select {
+      width: 100%;
+      background: #0a0a1f;
+      border: 1px solid #2a2a50;
+      color: #dde;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      resize: none;
+    }
+    textarea { height: 70px; }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #5555ff;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s;
+    }
+    .btn:active { opacity: .75; }
+    .btn-primary  { background: #4444cc; color: #fff; }
+    .btn-success  { background: #2a8a4a; color: #fff; }
+    .btn-warning  { background: #8a6a00; color: #fff; }
+    .btn-danger   { background: #8a2a2a; color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+    .emotion-btn {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border: 1px solid #333;
+      background: #1a1a35;
+      color: #ccc;
+      transition: all .15s;
+    }
+    .emotion-btn:hover { border-color: #5555ff; color: #fff; }
+    .emotion-btn.active { background: #2a2a66; border-color: #7777ff; color: #fff; }
+
+    #speak-text { height: 55px; }
+    #sim-text   { height: 44px; }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .svc {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: #0a0a1f;
+      border: 1px solid #222244;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    #chat-log {
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .msg-item {
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      background: #0a0a1f;
+      border-radius: 4px;
+      border-left: 2px solid #333;
+    }
+    .msg-item .mu { color: #8888ff; font-weight: 600; }
+    .msg-item.gift  { border-left-color: #ffaa00; }
+    .msg-item.follow { border-left-color: #44ff88; }
+
+    .result {
+      font-size: 0.78rem;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: #0a0a1f;
+      border-radius: 6px;
+      color: #7070aa;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 32px;
+    }
+    .result.ok  { color: #4cff88; }
+    .result.err { color: #ff6666; }
+
+    .full-col { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="dot" id="hd-dot"></div>
+  <h1>Panel de Control — Influencer IA</h1>
+  <span id="hd-status" style="font-size:.8rem;color:#7070aa;margin-left:4px;">comprobando...</span>
+</header>
+
+<div class="grid">
+
+  <!-- HABLAR -->
+  <div class="card">
+    <h2>Hacer hablar al avatar</h2>
+    <label>Texto</label>
+    <textarea id="speak-text" placeholder="¡Hola a todos! ¿Cómo están?"></textarea>
+    <label>Emoción</label>
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="emotion-btn active" data-e="neutral">neutral</button>
+      <button class="emotion-btn" data-e="happy">happy</button>
+      <button class="emotion-btn" data-e="excited">excited</button>
+      <button class="emotion-btn" data-e="surprised">surprised</button>
+      <button class="emotion-btn" data-e="thinking">thinking</button>
+      <button class="emotion-btn" data-e="love">love</button>
+    </div>
+    <button class="btn btn-primary" onclick="speakAvatar()">▶ Hablar</button>
+    <div class="result" id="speak-result"></div>
+  </div>
+
+  <!-- SIMULAR CHAT -->
+  <div class="card">
+    <h2>Simular mensaje de chat</h2>
+    <label>Usuario</label>
+    <input id="sim-user" type="text" value="TestUser" placeholder="NombreUsuario">
+    <label>Mensaje</label>
+    <textarea id="sim-text" placeholder="cuanto cuesta el iPhone 15 en peru?"></textarea>
+    <label>Plataforma</label>
+    <select id="sim-platform">
+      <option value="test">test</option>
+      <option value="tiktok">tiktok</option>
+      <option value="youtube">youtube</option>
+    </select>
+    <button class="btn btn-success" onclick="simMessage()">➤ Enviar</button>
+    <div class="result" id="sim-result"></div>
+  </div>
+
+  <!-- COMANDO DIRECTO -->
+  <div class="card">
+    <h2>Comando directo al avatar</h2>
+    <label>JSON</label>
+    <textarea id="cmd-json" style="height:100px;font-family:monospace;font-size:.8rem;">{
+  "type": "speak",
+  "text": "Hola!",
+  "emotion": "happy"
+}</textarea>
+    <button class="btn btn-warning" onclick="sendCommand()">⚡ Ejecutar</button>
+    <div class="result" id="cmd-result"></div>
+  </div>
+
+  <!-- AGENTE / SHOWCASE -->
+  <div class="card">
+    <h2>Buscar y mostrar producto</h2>
+    <label>Query (URL o nombre del producto)</label>
+    <input id="showcase-query" type="text" placeholder="iPhone 15 Pro Amazon">
+    <button class="btn btn-primary" onclick="doShowcase()">🔍 Buscar y mostrar</button>
+    <div class="result" id="showcase-result"></div>
+    <div style="margin-top:14px;">
+      <label>Ocultar overlay de producto</label>
+      <button class="btn btn-sm btn-danger" style="margin-top:6px;"
+        onclick="sendRaw({type:'hide_product'})">✕ Ocultar</button>
+    </div>
+  </div>
+
+  <!-- CONTROLES AGENTE -->
+  <div class="card">
+    <h2>Controles del agente</h2>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-warning" onclick="resetHistory()">🗑 Resetear historial</button>
+      <button class="btn btn-sm btn-success" id="btn-autoshowcase" onclick="toggleAutoShowcase()">Auto-showcase: ...</button>
+    </div>
+    <div class="result" id="agent-result"></div>
+  </div>
+
+  <!-- ESTADO SERVICIOS -->
+  <div class="card">
+    <h2>Estado de servicios</h2>
+    <div class="status-row" id="svc-status">
+      <div class="svc"><div class="dot" id="dot-avatar"></div><span>avatar</span></div>
+      <div class="svc"><div class="dot" id="dot-bridge"></div><span>chat-bridge</span></div>
+      <div class="svc"><div class="dot" id="dot-tts"></div><span>f5-tts</span></div>
+      <div class="svc"><div class="dot" id="dot-oc"></div><span>openclaw</span></div>
+      <div class="svc"><div class="dot" id="dot-hunter"></div><span>product-hunter</span></div>
+    </div>
+    <div style="margin-top:10px;">
+      <button class="btn btn-sm btn-primary" onclick="checkHealth()">↺ Refrescar</button>
+    </div>
+  </div>
+
+  <!-- CHAT RECIENTE (ancho completo) -->
+  <div class="card full-col">
+    <h2>Chat reciente <button class="btn btn-sm btn-primary" style="margin-left:8px;" onclick="loadChat()">↺</button></h2>
+    <div id="chat-log"><span style="color:#555;font-size:.8rem;">cargando...</span></div>
+  </div>
+
+</div>
+
+<script>
+  let selectedEmotion = 'neutral';
+
+  // Emotion selector
+  document.querySelectorAll('.emotion-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedEmotion = btn.dataset.e;
+    });
+  });
+
+  function setResult(id, data, isErr) {
+    const el = document.getElementById(id);
+    el.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+    el.className = 'result ' + (isErr ? 'err' : 'ok');
+  }
+
+  async function post(url, body) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return r.json();
+  }
+
+  async function get(url) {
+    const r = await fetch(url);
+    return r.json();
+  }
+
+  async function speakAvatar() {
+    const text = document.getElementById('speak-text').value.trim();
+    if (!text) return;
+    try {
+      const r = await post('/ctrl/command', {
+        type: 'speak',
+        text,
+        emotion: selectedEmotion,
+        language: 'es',
+      });
+      setResult('speak-result', r);
+    } catch(e) { setResult('speak-result', e.message, true); }
+  }
+
+  async function simMessage() {
+    const user = document.getElementById('sim-user').value || 'TestUser';
+    const text = document.getElementById('sim-text').value.trim();
+    const platform = document.getElementById('sim-platform').value;
+    if (!text) return;
+    try {
+      const r = await post('/ctrl/test-message', { user, text, platform });
+      setResult('sim-result', r);
+    } catch(e) { setResult('sim-result', e.message, true); }
+  }
+
+  async function sendCommand() {
+    try {
+      const body = JSON.parse(document.getElementById('cmd-json').value);
+      const r = await post('/ctrl/command', body);
+      setResult('cmd-result', r);
+    } catch(e) { setResult('cmd-result', e.message, true); }
+  }
+
+  async function sendRaw(cmd) {
+    await post('/ctrl/command', cmd);
+  }
+
+  async function doShowcase() {
+    const query = document.getElementById('showcase-query').value.trim();
+    if (!query) return;
+    try {
+      setResult('showcase-result', 'Buscando...', false);
+      const r = await post('/agent/showcase', { query });
+      setResult('showcase-result', r);
+    } catch(e) { setResult('showcase-result', e.message, true); }
+  }
+
+  async function resetHistory() {
+    try {
+      const r = await post('/agent/reset', {});
+      setResult('agent-result', r);
+    } catch(e) { setResult('agent-result', e.message, true); }
+  }
+
+  async function toggleAutoShowcase() {
+    try {
+      const status = await get('/agent/status');
+      const newVal = !status.autoShowcaseEnabled;
+      const r = await post('/agent/autoshowcase', { enabled: newVal });
+      updateAutoShowcaseBtn(r.autoShowcaseEnabled);
+      setResult('agent-result', r);
+    } catch(e) { setResult('agent-result', e.message, true); }
+  }
+
+  function updateAutoShowcaseBtn(enabled) {
+    const btn = document.getElementById('btn-autoshowcase');
+    if (enabled) {
+      btn.textContent = '✅ Auto-showcase: ON';
+      btn.className = 'btn btn-sm btn-success';
+    } else {
+      btn.textContent = '⏸ Auto-showcase: OFF';
+      btn.className = 'btn btn-sm btn-danger';
+    }
+  }
+
+  async function checkHealth() {
+    const checks = [
+      { id: 'dot-avatar',  url: '/health' },
+      { id: 'dot-bridge',  url: '/ctrl/health' },  // chat-bridge health via ctrl proxy
+      { id: 'dot-tts',     url: '/tts/health' },
+      { id: 'dot-oc',      url: '/agent/health' },
+      { id: 'dot-hunter',  url: '/hunter/health' },
+    ];
+    for (const c of checks) {
+      try {
+        const r = await fetch(c.url);
+        document.getElementById(c.id).className = 'dot ' + (r.ok ? 'ok' : 'err');
+      } catch {
+        document.getElementById(c.id).className = 'dot err';
+      }
+    }
+    // Header dot
+    const allOk = checks.every(c => document.getElementById(c.id).classList.contains('ok'));
+    document.getElementById('hd-dot').className = 'dot ' + (allOk ? 'ok' : 'err');
+    document.getElementById('hd-status').textContent = allOk ? 'Todos los servicios OK' : 'Algún servicio con error';
+
+    // AutoShowcase state
+    try {
+      const s = await get('/agent/status');
+      updateAutoShowcaseBtn(s.autoShowcaseEnabled);
+    } catch {}
+  }
+
+  async function loadChat() {
+    const log = document.getElementById('chat-log');
+    try {
+      const msgs = await get('/ctrl/chat/history');
+      if (!msgs.length) { log.innerHTML = '<span style="color:#555;font-size:.8rem;">Sin mensajes aún</span>'; return; }
+      log.innerHTML = '';
+      msgs.slice().reverse().forEach(m => {
+        const d = document.createElement('div');
+        d.className = 'msg-item ' + (m.type || '');
+        d.innerHTML = `<span class="mu">${escHtml(m.user || '?')}:</span> ${escHtml(m.text || '')} <span style="color:#444;font-size:.72rem;">[${m.platform||''}]</span>`;
+        log.appendChild(d);
+      });
+    } catch(e) {
+      log.innerHTML = '<span style="color:#ff6666;font-size:.8rem;">Error cargando historial</span>';
+    }
+  }
+
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // Startup checks
+  checkHealth();
+  loadChat();
+  setInterval(loadChat, 15000);
+  setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>
