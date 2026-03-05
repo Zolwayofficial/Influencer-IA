@@ -80,6 +80,8 @@ class InfluencerApp {
 
         this.setStatus('connected', 'Avatar listo');
       this.applyEmotionEffects('neutral');
+      // Desbloquear AudioContext de TalkingHead en cuanto esté disponible (funciona en OBS)
+      try { if (this.head?.audioCtx?.state === 'suspended') this.head.audioCtx.resume(); } catch(e) {}
 
     } catch (err) {
       console.error('Error inicializando avatar:', err);
