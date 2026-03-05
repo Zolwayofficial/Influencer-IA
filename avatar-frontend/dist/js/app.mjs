@@ -362,23 +362,14 @@ class InfluencerApp {
 const app = new InfluencerApp();
 app.init().catch(console.error);
 
-// --- Activar audio al primer click (autoplay policy del navegador) ---
-const audioGate = document.getElementById('audio-gate');
-if (audioGate) {
-  const unlock = () => {
-    // Resumir el AudioContext interno de TalkingHead
-    try {
-      if (app.head?.audioCtx?.state === 'suspended') {
-        app.head.audioCtx.resume();
-      }
-    } catch(e) {}
-    // Crear y resumir un AudioContext temporal para desbloquear el navegador
-    try {
-      const tmpCtx = new AudioContext();
-      tmpCtx.resume().then(() => tmpCtx.close());
-    } catch(e) {}
-    audioGate.style.display = 'none';
-  };
-  audioGate.addEventListener('click',      unlock, { once: true });
-  audioGate.addEventListener('touchstart', unlock, { once: true });
+// --- Desbloquear audio automáticamente (autoplay policy del navegador) ---
+function unlockAudio() {
+  try { if (app.head?.audioCtx?.state === 'suspended') app.head.audioCtx.resume(); } catch(e) {}
+  try { const t = new AudioContext(); t.resume().then(() => t.close()); } catch(e) {}
 }
+// Intento inmediato (funciona en OBS y algunos navegadores)
+unlockAudio();
+// En el primer gesto del usuario — sin UI visible
+['click','keydown','touchstart','mousedown'].forEach(ev =>
+  document.addEventListener(ev, unlockAudio, { once: true, passive: true })
+);
