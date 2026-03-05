@@ -5,5 +5,6 @@ RUN npm install --production
 COPY src/ src/
 COPY config/ config/
 COPY skills/ skills/
+COPY data/ data/
 EXPOSE 3000
 CMD ["npm", "start"]
