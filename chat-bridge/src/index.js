@@ -123,12 +123,14 @@ async function processMessage(msg) {
         const response = await res.json();
         // Si OpenClaw responde, enviar al avatar
         if (response.action === 'speak' && response.text) {
-          broadcastToAvatar({
-            type: 'speak',
-            text: response.text,
-            emotion: response.emotion || 'neutral',
+          const cmd = {
+            type:     'speak',
+            text:     response.text,
+            emotion:  response.emotion  || 'neutral',
             language: response.language || 'es',
-          });
+          };
+          if (response.animation) cmd.animation = response.animation;
+          broadcastToAvatar(cmd);
         } else if (response.action === 'show_product') {
           broadcastToAvatar({
             type: 'speak_and_show',

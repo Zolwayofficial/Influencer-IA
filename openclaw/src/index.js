@@ -15,6 +15,9 @@ const { searchProduct }                          = require('./skills/browser');
 const { showProduct   }                          = require('./skills/showcase');
 const { calculateImport, formatQuotationSpeech } = require('./skills/quotation');
 
+// Reflex layer — respuestas instantáneas sin LLM
+const { reflexCheck } = require('./reflex');
+
 // Memoria persistente — Mem0 + Qdrant
 const { getContextForChat, saveInteraction } = require('./memory');
 
@@ -97,6 +100,17 @@ function addToHistory(role, content) {
 // Procesar mensaje del chat
 // ---------------------------------------------------------------------------
 async function processChat(msg) {
+  // -------------------------------------------------------------------------
+  // Reflex layer: respuesta instantánea para eventos predecibles (sin LLM)
+  // -------------------------------------------------------------------------
+  const reflexResponse = reflexCheck(msg);
+  if (reflexResponse) {
+    // Guardar en historial para mantener contexto
+    addToHistory('user',      `[${msg.platform || 'unknown'}] ${msg.user || 'viewer'}: ${msg.text}`);
+    addToHistory('assistant', reflexResponse.text);
+    return reflexResponse;
+  }
+
   const userMessage = `[${msg.platform || 'unknown'}] ${msg.user || 'viewer'} (${msg.type || 'chat'}): ${msg.text}`;
   addToHistory('user', userMessage);
 

@@ -108,18 +108,26 @@ def _get_voice_files(voice_name: str):
     return wav_path, transcript
 
 
-async def _synthesize_edge(text: str) -> bytes:
-    """edge-tts: genera MP3 en <1s usando Microsoft Azure TTS gratuito."""
+async def _synthesize_edge(text: str):
+    """edge-tts: genera MP3 en <1s usando Microsoft Azure TTS gratuito.
+    Retorna (mp3_bytes, timepoints) donde timepoints es lista de {mark, time}.
+    Los timepoints son word boundaries reales para lipsync preciso en TalkingHead.
+    """
     import edge_tts
     # Eliminar etiquetas SSML (<speak>, <mark>, etc.) — edge-tts las lee como texto literal
     plain = re.sub(r"<[^>]+>", " ", text)
     plain = re.sub(r"\s+", " ", plain).strip()
     communicate = edge_tts.Communicate(plain, EDGE_VOICE)
-    audio = b""
+    audio_chunks = []
+    timepoints = []
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
-            audio += chunk["data"]
-    return audio  # MP3
+            audio_chunks.append(chunk["data"])
+        elif chunk["type"] == "WordBoundary":
+            # Convertir unidades de 100 nanosegundos a segundos
+            time_sec = round(chunk["offset"] / 10_000_000, 3)
+            timepoints.append({"mark": chunk["text"], "time": time_sec})
+    return b"".join(audio_chunks), timepoints  # MP3, word boundaries
 
 
 def _wav_to_ogg(wav_bytes: bytes) -> bytes:
@@ -210,8 +218,8 @@ async def _handle_tts(request: Request) -> Response:
     log.info(f"TTS request: voice={voice} speed={speed} text='{text[:60]}{'...' if len(text)>60 else ''}'")
 
     if TTS_ENGINE == "edge":
-        # edge-tts: rapido, Microsoft neural, devuelve MP3 directamente
-        mp3_bytes = await _synthesize_edge(text)
+        # edge-tts: rapido, Microsoft neural, devuelve MP3 + word boundary timepoints
+        mp3_bytes, timepoints = await _synthesize_edge(text)
         audio_b64 = base64.b64encode(mp3_bytes).decode("utf-8")
     else:
         # F5-TTS: voice cloning, lento en CPU
@@ -222,8 +230,9 @@ async def _handle_tts(request: Request) -> Response:
             wav_bytes = await loop.run_in_executor(None, _synthesize, text, voice, speed)
         ogg_bytes = await asyncio.get_event_loop().run_in_executor(None, _wav_to_ogg, wav_bytes)
         audio_b64 = base64.b64encode(ogg_bytes).decode("utf-8")
+        timepoints = []
 
-    return JSONResponse({"audioContent": audio_b64, "timepoints": []})
+    return JSONResponse({"audioContent": audio_b64, "timepoints": timepoints})
 
 
 @app.post("/tts")

@@ -7,6 +7,17 @@ const EMOTION_BACKGROUNDS = {
   excited:   'linear-gradient(135deg, #1a0800 0%, #2d1000 40%, #180500 100%)',
   surprised: 'linear-gradient(135deg, #001520 0%, #001f30 40%, #000f1a 100%)',
   thinking:  'linear-gradient(135deg, #050520 0%, #08083a 40%, #030318 100%)',
+  love:      'linear-gradient(135deg, #1a0010 0%, #2d0020 40%, #180010 100%)',
+};
+
+// Emociones → mood de TalkingHead
+const EMOTION_MOODS = {
+  neutral:   'neutral',
+  happy:     'happy',
+  excited:   'happy',
+  surprised: 'sad',    // TalkingHead usa sad para expresión de sorpresa
+  thinking:  'neutral',
+  love:      'happy',
 };
 
 const BG_ROTATE_INTERVAL = 3 * 60 * 1000; // rotar fondo cada 3 minutos
@@ -211,10 +222,20 @@ class InfluencerApp {
 
       case 'speak':
         this.applyEmotionEffects(msg.emotion || 'neutral');
+        // Si viene con animación (ej: wave para follows/gifts), ejecutar antes de hablar
+        if (msg.animation) {
+          try {
+            await this.head.playAnimation(`/animations/${msg.animation}.fbx`, { loop: false });
+          } catch { /* animación opcional */ }
+        }
         await this.head.speakText(msg.text, {
-          language: msg.language || 'es',
-          avatarMood: msg.emotion || 'neutral',
+          language:   msg.language || 'es',
+          avatarMood: EMOTION_MOODS[msg.emotion] || msg.emotion || 'neutral',
         });
+        // Volver a neutral tras emociones intensas
+        if (msg.emotion === 'excited' || msg.emotion === 'surprised') {
+          setTimeout(() => this.applyEmotionEffects('neutral'), 4000);
+        }
         break;
 
       case 'emote':
