@@ -54,6 +54,17 @@
     <span id="status-text">Conectando...</span>
   </div>
 
+  <!-- Overlay: activar audio (autoplay policy) -->
+  <div id="audio-gate" style="
+    position:fixed;inset:0;z-index:9999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(0,0,0,0.75);cursor:pointer;">
+    <div style="font-size:4rem;">🔊</div>
+    <div style="color:#fff;font-size:1.4rem;margin-top:1rem;font-family:sans-serif;">
+      Toca para activar el audio
+    </div>
+  </div>
+
   <script type="module" src="js/app.mjs"></script>
 </body>
 </html>

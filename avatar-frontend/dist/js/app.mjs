@@ -361,3 +361,24 @@ class InfluencerApp {
 // --- Iniciar aplicacion ---
 const app = new InfluencerApp();
 app.init().catch(console.error);
+
+// --- Activar audio al primer click (autoplay policy del navegador) ---
+const audioGate = document.getElementById('audio-gate');
+if (audioGate) {
+  const unlock = () => {
+    // Resumir el AudioContext interno de TalkingHead
+    try {
+      if (app.head?.audioCtx?.state === 'suspended') {
+        app.head.audioCtx.resume();
+      }
+    } catch(e) {}
+    // Crear y resumir un AudioContext temporal para desbloquear el navegador
+    try {
+      const tmpCtx = new AudioContext();
+      tmpCtx.resume().then(() => tmpCtx.close());
+    } catch(e) {}
+    audioGate.style.display = 'none';
+  };
+  audioGate.addEventListener('click',      unlock, { once: true });
+  audioGate.addEventListener('touchstart', unlock, { once: true });
+}
