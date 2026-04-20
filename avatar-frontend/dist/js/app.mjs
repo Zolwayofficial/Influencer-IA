@@ -15,7 +15,7 @@ const EMOTION_MOODS = {
   neutral:   'neutral',
   happy:     'happy',
   excited:   'happy',
-  surprised: 'sad',    // TalkingHead usa sad para expresión de sorpresa
+  surprised: 'neutral',  // TalkingHead no tiene surprised — neutral evita cara triste
   thinking:  'neutral',
   love:      'happy',
 };
@@ -29,6 +29,10 @@ class InfluencerApp {
     this.reconnectDelay = 3000;
     this.maxChatMessages = 25;
     this.currentEmotion = 'neutral';
+
+    // Modo stream: solo activo cuando la URL incluye ?key=live1234
+    const _urlKey = new URLSearchParams(location.search).get('key');
+    this._streamMode = _urlKey === 'live1234';
 
     // Background system
     this.sdBackgrounds = [];  // URLs de fondos generados por Stable Diffusion
@@ -47,8 +51,26 @@ class InfluencerApp {
     this.aiBg            = document.getElementById('ai-background');
     this.ambientFx       = document.getElementById('ambient-fx');
     this.avatarEl        = document.getElementById('avatar');
-    this.productQrImg    = document.getElementById('product-qr-img');
-    this.productQrBox    = document.getElementById('product-qr');
+    this.productQrImg         = document.getElementById('product-qr-img');
+    this.productQrBox         = document.getElementById('product-qr');
+    this.productImageContainer = document.getElementById('product-image-container');
+    this.productVideo      = document.getElementById('product-video');
+    this.productOrigPrice  = document.getElementById('product-original-price');
+    this.productTimer      = document.getElementById('product-timer');
+    this.productTimerLabel = document.getElementById('product-timer-label');
+    this.timerMin          = document.getElementById('timer-min');
+    this.timerSec          = document.getElementById('timer-sec');
+    this._promoInterval    = null;
+    this._promoHideTimeout = null;
+
+    // Screen share
+    this.screenCanvas      = document.getElementById('screen-canvas');
+    this.screensharePrompt = document.getElementById('screenshare-prompt');
+    this._screenStream     = null;
+    this._captureInterval  = null;
+    this._autonomousMode   = false;
+
+    document.getElementById('screenshare-btn').addEventListener('click', () => this._startScreenShare());
   }
 
   async init() {
@@ -80,8 +102,7 @@ class InfluencerApp {
 
         this.setStatus('connected', 'Avatar listo');
       this.applyEmotionEffects('neutral');
-      // Desbloquear AudioContext de TalkingHead en cuanto esté disponible (funciona en OBS)
-      try { if (this.head?.audioCtx?.state === 'suspended') this.head.audioCtx.resume(); } catch(e) {}
+      this._setupAudioUnlock();
 
     } catch (err) {
       console.error('Error inicializando avatar:', err);
@@ -108,8 +129,8 @@ class InfluencerApp {
     if (e === this.currentEmotion) return;
     this.currentEmotion = e;
 
-    // 1. Fondo CSS: solo si no hay fondos SD cargados
-    if (this.sdBackgrounds.length === 0 && this.aiBg) {
+    // 1. Fondo CSS: solo si no hay fondo personalizado ni fondos SD cargados
+    if (!this._customBg && this.sdBackgrounds.length === 0 && this.aiBg) {
       this.aiBg.style.background = EMOTION_BACKGROUNDS[e] || EMOTION_BACKGROUNDS.neutral;
     }
 
@@ -153,7 +174,7 @@ class InfluencerApp {
       const data = await res.json();
       if (Array.isArray(data.backgrounds) && data.backgrounds.length > 0) {
         this.sdBackgrounds = data.backgrounds;
-        this._applyBackground(this.sdBackgrounds[0]);
+        if (!this._customBg) this._applyBackground(this.sdBackgrounds[0]);
         console.log(`[BG] ${this.sdBackgrounds.length} fondos SD cargados`);
       }
     } catch {
@@ -162,17 +183,42 @@ class InfluencerApp {
   }
 
   _rotateBackground() {
+    if (this._customBg) return; // fondo personalizado activo, no rotar
     if (this.sdBackgrounds.length === 0) {
-      // Sin fondos SD: re-aplicar gradiente de emocion actual
       if (this.aiBg) {
         this.aiBg.style.background = EMOTION_BACKGROUNDS[this.currentEmotion] || EMOTION_BACKGROUNDS.neutral;
       }
-      // Intentar recargar fondos SD por si ya se generaron
       this._loadSDBackgrounds();
       return;
     }
     this.bgIndex = (this.bgIndex + 1) % this.sdBackgrounds.length;
     this._applyBackground(this.sdBackgrounds[this.bgIndex]);
+  }
+
+  _applyCustomBackground(url) {
+    const bgVideo = document.getElementById('bg-video');
+    this._customBg = url || null;
+    if (!url) {
+      bgVideo.style.display = 'none';
+      bgVideo.src = '';
+      this.aiBg.style.backgroundImage = '';
+      this.aiBg.style.background = EMOTION_BACKGROUNDS[this.currentEmotion] || EMOTION_BACKGROUNDS.neutral;
+      return;
+    }
+    const isVideo = /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url);
+    if (isVideo) {
+      bgVideo.src = url;
+      bgVideo.style.display = 'block';
+      bgVideo.load();
+      bgVideo.play().catch(() => {});
+      this.aiBg.style.backgroundImage = '';
+    } else {
+      bgVideo.style.display = 'none';
+      bgVideo.src = '';
+      this.aiBg.style.backgroundImage = `url('${url}')`;
+      this.aiBg.style.backgroundSize = 'cover';
+      this.aiBg.style.backgroundPosition = 'center';
+    }
   }
 
   _applyBackground(url) {
@@ -223,6 +269,7 @@ class InfluencerApp {
     switch (msg.type) {
 
       case 'speak':
+        if (!this._streamMode) break; // preview no habla
         this.applyEmotionEffects(msg.emotion || 'neutral');
         // Si viene con animación (ej: wave para follows/gifts), ejecutar antes de hablar
         if (msg.animation) {
@@ -234,7 +281,8 @@ class InfluencerApp {
           language:   msg.language || 'es',
           avatarMood: EMOTION_MOODS[msg.emotion] || msg.emotion || 'neutral',
         });
-        // Volver a neutral tras emociones intensas
+        // Siempre volver a happy al terminar para no quedarse con cara triste
+        try { this.head.setMood('happy'); } catch(e) {}
         if (msg.emotion === 'excited' || msg.emotion === 'surprised') {
           setTimeout(() => this.applyEmotionEffects('neutral'), 4000);
         }
@@ -261,6 +309,8 @@ class InfluencerApp {
         break;
 
       case 'hide_product':
+        if (this._promoInterval) { clearInterval(this._promoInterval); this._promoInterval = null; }
+        if (this._promoHideTimeout) { clearTimeout(this._promoHideTimeout); this._promoHideTimeout = null; }
         this.productOverlay.style.display = 'none';
         break;
 
@@ -277,7 +327,44 @@ class InfluencerApp {
           language: msg.language || 'es',
           avatarMood: 'excited',
         });
+        try { this.head.setMood('happy'); } catch(e) {}
         this.applyEmotionEffects('neutral');
+        break;
+
+      case 'set_background':
+        this._applyCustomBackground(msg.url || null);
+        break;
+
+      case 'set_layout':
+        document.body.classList.toggle('spotlight', msg.mode === 'spotlight');
+        break;
+
+      case 'screenshare_request':
+        if (navigator.mediaDevices?.getDisplayMedia) {
+          this.screensharePrompt.style.display = 'flex';
+        }
+        break;
+
+      case 'screenshare_mode':
+        this._screensharePreference = msg.mode;
+        if (this._screenStream) {
+          document.body.classList.remove('screenshare-presentation', 'screenshare-only');
+          if (msg.mode === 'presentation') document.body.classList.add('screenshare-presentation');
+          else if (msg.mode === 'only')     document.body.classList.add('screenshare-only');
+        }
+        break;
+
+      case 'screenshare_stop':
+        this._stopScreenShare();
+        break;
+
+      case 'set_autonomous':
+        this._autonomousMode = !!msg.enabled;
+        if (this._autonomousMode && this._screenStream) {
+          this._startScreenCapture();
+        } else {
+          this._stopScreenCapture();
+        }
         break;
 
       case 'set_mood':
@@ -293,18 +380,84 @@ class InfluencerApp {
     }
   }
 
+  // --- Countdown promo ---
+  _startPromoTimer(seconds) {
+    if (this._promoInterval) { clearInterval(this._promoInterval); this._promoInterval = null; }
+    if (this._promoHideTimeout) { clearTimeout(this._promoHideTimeout); this._promoHideTimeout = null; }
+
+    let remaining = seconds;
+    const update = (s) => {
+      this.timerMin.textContent = String(Math.floor(s / 60)).padStart(2, '0');
+      this.timerSec.textContent = String(s % 60).padStart(2, '0');
+    };
+
+    this.productTimer.style.display = 'flex';
+    this.productTimer.classList.remove('urgent');
+    this.productTimerLabel.textContent = 'Oferta termina en';
+    update(remaining);
+
+    this._promoInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(this._promoInterval);
+        this._promoInterval = null;
+        this.timerMin.textContent = '00';
+        this.timerSec.textContent = '00';
+        this.productTimerLabel.textContent = '¡Oferta terminada!';
+        this.productTimer.classList.add('urgent');
+        this._promoHideTimeout = setTimeout(() => {
+          this._promoHideTimeout = null;
+          this.productOverlay.style.display = 'none';
+        }, 3000);
+        return;
+      }
+      if (remaining <= 60) this.productTimer.classList.add('urgent');
+      update(remaining);
+    }, 1000);
+  }
+
   // --- Mostrar producto ---
   showProduct(product) {
     if (!product) return;
 
+    // Limpiar timer anterior e hide-timeout pendiente
+    if (this._promoInterval) {
+      clearInterval(this._promoInterval);
+      this._promoInterval = null;
+    }
+    if (this._promoHideTimeout) {
+      clearTimeout(this._promoHideTimeout);
+      this._promoHideTimeout = null;
+    }
+
     this.productName.textContent = product.name || '';
+
+    // Precio original tachado (promo) o solo precio normal
+    if (product.original_price) {
+      this.productOrigPrice.textContent = product.original_price;
+      this.productOrigPrice.style.display = 'block';
+    } else {
+      this.productOrigPrice.style.display = 'none';
+    }
+
     this.productPrice.textContent = product.price || '';
 
-    if (product.image) {
+    if (product.video) {
+      this.productImage.style.display = 'none';
+      this.productVideo.src = product.video;
+      this.productVideo.style.display = 'block';
+      this.productVideo.load();
+      this.productVideo.play().catch(() => {});
+      if (this.productImageContainer) this.productImageContainer.style.display = '';
+    } else if (product.image) {
+      this.productVideo.style.display = 'none';
       this.productImage.src = product.image;
       this.productImage.style.display = 'block';
+      if (this.productImageContainer) this.productImageContainer.style.display = '';
     } else {
       this.productImage.style.display = 'none';
+      this.productVideo.style.display = 'none';
+      if (this.productImageContainer) this.productImageContainer.style.display = 'none';
     }
 
     this.productFeatures.innerHTML = '';
@@ -323,7 +476,15 @@ class InfluencerApp {
       this.productQrBox.style.display = 'none';
     }
 
-    this.productOverlay.style.display = 'block';
+    // Countdown de promo (si viene con timer)
+    if (product.promo_seconds && product.promo_seconds > 0) {
+      this._startPromoTimer(product.promo_seconds);
+    } else {
+      this.productTimer.style.display = 'none';
+      this.productTimer.classList.remove('urgent');
+    }
+
+    this.productOverlay.style.display = document.body.classList.contains('spotlight') ? 'flex' : 'block';
   }
 
   // --- Chat en vivo ---
@@ -352,6 +513,158 @@ class InfluencerApp {
     this.statusText.textContent = text;
   }
 
+  // --- Desbloqueo de audio: solo en modo stream ---
+  _setupAudioUnlock() {
+    const tryResume = () => {
+      try { if (this.head?.audioCtx?.state === 'suspended') this.head.audioCtx.resume(); } catch(e) {}
+    };
+
+    // Intento inmediato (funciona en OBS/Chromium headless)
+    tryResume();
+
+    if (!this._streamMode) {
+      // Modo preview: badge visual, sin audio ni voz
+      const badge = document.createElement('div');
+      badge.style.cssText = 'position:fixed;top:12px;right:12px;background:rgba(0,0,0,0.55);color:#666;padding:4px 10px;border-radius:6px;font-size:0.7rem;font-family:sans-serif;letter-spacing:0.05em;pointer-events:none;z-index:9999';
+      badge.textContent = 'PREVIEW';
+      document.body.appendChild(badge);
+      return;
+    }
+
+    // Modo stream: desbloquear silenciosamente al primer clic
+    let _unlocked = false;
+    const unlock = async () => {
+      if (_unlocked) return;
+      _unlocked = true;
+      tryResume();
+      await new Promise(r => setTimeout(r, 300));
+      try {
+        await this.head.speakText('¡Bienvenidos! Soy tu influencer virtual. ¿En qué los puedo ayudar hoy?', {
+          language: 'es',
+          avatarMood: 'happy',
+        });
+      } catch(e) { console.warn('Auto-speak falló:', e); }
+    };
+    document.addEventListener('click', unlock, { once: true, passive: true });
+  }
+
+  // --- Screen Share ---
+  async _startScreenShare() {
+    this.screensharePrompt.style.display = 'none';
+    try {
+      this._screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30 },
+        audio: false,
+      });
+
+      // Apply class + force canvas visible via inline style (bypasses CSS specificity issues)
+      if (!document.body.classList.contains('screenshare-presentation') &&
+          !document.body.classList.contains('screenshare-only')) {
+        document.body.classList.add('screenshare-presentation');
+      }
+      Object.assign(this.screenCanvas.style, {
+        display: 'block',
+        position: 'fixed',
+        top: '0',
+        left: '210px',
+        width: 'calc(100vw - 210px)',
+        height: '100vh',
+        zIndex: '3',
+        background: '#000',
+      });
+
+      // Buffer at viewport size — CSS handles visual scaling
+      this.screenCanvas.width  = window.innerWidth - 210;
+      this.screenCanvas.height = window.innerHeight;
+      const ctx = this.screenCanvas.getContext('2d');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, this.screenCanvas.width, this.screenCanvas.height);
+
+      // Hidden video must be in DOM (not hidden via opacity — Chrome skips decoding
+      // for opacity:0 elements). Positioned off-screen so it's invisible but active.
+      const hiddenVideo = document.createElement('video');
+      hiddenVideo.srcObject = this._screenStream;
+      hiddenVideo.muted = true;
+      hiddenVideo.playsInline = true;
+      hiddenVideo.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none';
+      document.body.appendChild(hiddenVideo);
+      this._proxyVideo = hiddenVideo;
+      await hiddenVideo.play();
+
+      const W = this.screenCanvas.width;
+      const H = this.screenCanvas.height;
+
+      // requestVideoFrameCallback: fires when a real frame is ready — more reliable
+      // than readyState checks and works even when the tab is in the background.
+      if (hiddenVideo.requestVideoFrameCallback) {
+        const rVFC = () => {
+          if (!this._screenStream) return;
+          try { ctx.drawImage(hiddenVideo, 0, 0, W, H); } catch(e) { console.warn('draw:', e); }
+          hiddenVideo.requestVideoFrameCallback(rVFC);
+        };
+        hiddenVideo.requestVideoFrameCallback(rVFC);
+      } else {
+        // Fallback: setInterval at 30fps (runs in background unlike RAF)
+        this._proxyRaf = setInterval(() => {
+          if (!this._screenStream) return;
+          try {
+            if (hiddenVideo.readyState >= 2) ctx.drawImage(hiddenVideo, 0, 0, W, H);
+          } catch(e) {}
+        }, 33);
+      }
+
+      this._screenStream.getVideoTracks()[0].addEventListener('ended', () => this._stopScreenShare());
+    } catch (err) {
+      console.warn('Screen share cancelado o error:', err);
+    }
+  }
+
+  _stopScreenShare() {
+    this._stopScreenCapture();
+    // _proxyRaf holds a setInterval ID (fallback path); rVFC stops when srcObject is nulled
+    if (this._proxyRaf) { clearInterval(this._proxyRaf); this._proxyRaf = null; }
+    if (this._proxyVideo) {
+      this._proxyVideo.srcObject = null;
+      if (this._proxyVideo.parentNode) this._proxyVideo.parentNode.removeChild(this._proxyVideo);
+      this._proxyVideo = null;
+    }
+    if (this._screenStream) {
+      this._screenStream.getTracks().forEach(t => t.stop());
+      this._screenStream = null;
+    }
+    const ctx = this.screenCanvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, this.screenCanvas.width, this.screenCanvas.height);
+    this.screenCanvas.style.cssText = '';
+    document.body.classList.remove('screenshare-presentation', 'screenshare-only');
+  }
+
+  _startScreenCapture() {
+    if (this._captureInterval) return;
+    this._captureInterval = setInterval(() => {
+      if (!this._screenStream || !this.screenCanvas.width) return;
+      try {
+        const scale  = Math.min(1, 1280 / this.screenCanvas.width);
+        const canvas = document.createElement('canvas');
+        canvas.width  = this.screenCanvas.width  * scale;
+        canvas.height = this.screenCanvas.height * scale;
+        canvas.getContext('2d').drawImage(this.screenCanvas, 0, 0, canvas.width, canvas.height);
+        const jpeg = canvas.toDataURL('image/jpeg', 0.5);
+        fetch('/agent/screenshot', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ image: jpeg }),
+        }).catch(() => {});
+      } catch (_) {}
+    }, 10000);
+  }
+
+  _stopScreenCapture() {
+    if (this._captureInterval) {
+      clearInterval(this._captureInterval);
+      this._captureInterval = null;
+    }
+  }
+
   // --- Utilidades ---
   escapeHtml(str) {
     const div = document.createElement('div');
@@ -364,14 +677,3 @@ class InfluencerApp {
 const app = new InfluencerApp();
 app.init().catch(console.error);
 
-// --- Desbloquear audio automáticamente (autoplay policy del navegador) ---
-function unlockAudio() {
-  try { if (app.head?.audioCtx?.state === 'suspended') app.head.audioCtx.resume(); } catch(e) {}
-  try { const t = new AudioContext(); t.resume().then(() => t.close()); } catch(e) {}
-}
-// Intento inmediato (funciona en OBS y algunos navegadores)
-unlockAudio();
-// En el primer gesto del usuario — sin UI visible
-['click','keydown','touchstart','mousedown'].forEach(ev =>
-  document.addEventListener(ev, unlockAudio, { once: true, passive: true })
-);

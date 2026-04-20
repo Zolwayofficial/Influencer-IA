@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3D Influencer Avatar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
   {
@@ -25,15 +28,42 @@
   <!-- Contenedor principal del avatar 3D -->
   <div id="avatar"></div>
 
+  <!-- Fondo personalizado en video -->
+  <video id="bg-video" autoplay muted loop playsinline></video>
+
+  <!-- Pantalla compartida: canvas evita hardware overlay planes de Chromium -->
+  <canvas id="screen-canvas"></canvas>
+
+  <!-- Prompt para activar screen share (requiere clic del usuario) -->
+  <div id="screenshare-prompt">
+    <button id="screenshare-btn">🖥️ Clic para compartir pantalla</button>
+  </div>
+
   <!-- Overlay: informacion del producto -->
   <div id="product-overlay">
     <button id="product-close" onclick="document.getElementById('product-overlay').style.display='none'">&times;</button>
     <div id="product-image-container">
       <img id="product-image" src="" alt="Producto">
+      <video id="product-video" autoplay muted loop playsinline></video>
     </div>
     <div id="product-info">
       <h3 id="product-name"></h3>
+      <p id="product-original-price"></p>
       <p id="product-price"></p>
+      <div id="product-timer" style="display:none">
+        <span id="product-timer-label">Oferta termina en</span>
+        <div class="timer-blocks">
+          <div class="timer-block">
+            <span class="timer-block-label">MIN</span>
+            <span id="timer-min" class="timer-block-num">00</span>
+          </div>
+          <span class="timer-sep">:</span>
+          <div class="timer-block">
+            <span class="timer-block-label">SEG</span>
+            <span id="timer-sec" class="timer-block-num">00</span>
+          </div>
+        </div>
+      </div>
       <ul id="product-features"></ul>
     </div>
     <div id="product-qr">

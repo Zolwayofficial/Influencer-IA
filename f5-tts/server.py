@@ -130,6 +130,20 @@ async def _synthesize_edge(text: str):
     return b"".join(audio_chunks), timepoints  # MP3, word boundaries
 
 
+def _synthesize_gtts_sync(text: str) -> bytes:
+    """Google TTS via gTTS — sincrono, llamar en executor.
+    Retorna MP3 bytes. Sin timepoints (TalkingHead usa analisis de texto para lipsync).
+    """
+    from gtts import gTTS
+    plain = re.sub(r"<[^>]+>", " ", text)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    tts = gTTS(text=plain, lang="es", slow=False)
+    buf = io.BytesIO()
+    tts.write_to_fp(buf)
+    buf.seek(0)
+    return buf.read()
+
+
 def _wav_to_ogg(wav_bytes: bytes) -> bytes:
     """Convierte bytes WAV → bytes OGG-OPUS usando ffmpeg."""
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_in:
@@ -217,7 +231,13 @@ async def _handle_tts(request: Request) -> Response:
 
     log.info(f"TTS request: voice={voice} speed={speed} text='{text[:60]}{'...' if len(text)>60 else ''}'")
 
-    if TTS_ENGINE == "edge":
+    if TTS_ENGINE == "gtts":
+        # gTTS: Google TTS — funciona desde servidores datacenter donde edge-tts es bloqueado
+        loop = asyncio.get_event_loop()
+        mp3_bytes = await loop.run_in_executor(None, _synthesize_gtts_sync, text)
+        audio_b64 = base64.b64encode(mp3_bytes).decode("utf-8")
+        timepoints = []
+    elif TTS_ENGINE == "edge":
         # edge-tts: rapido, Microsoft neural, devuelve MP3 + word boundary timepoints
         mp3_bytes, timepoints = await _synthesize_edge(text)
         audio_b64 = base64.b64encode(mp3_bytes).decode("utf-8")
