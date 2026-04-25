@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Control del Avatar</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Avatar Control">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -59,48 +66,26 @@
     }
 
     .login-icon {
-      width: 52px;
-      height: 52px;
+      width: 52px; height: 52px;
       background: var(--indigo-bg);
       border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      margin-bottom: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 4px;
     }
 
-    #login-screen h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
+    #login-screen h1 { font-size: 1.1rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
 
     #pin-input {
-      font-size: 1.8rem;
-      letter-spacing: 0.6rem;
-      text-align: center;
-      background: var(--surface-2);
-      border: 1px solid var(--border-2);
-      border-radius: 12px;
-      color: var(--text);
-      padding: 12px 20px;
-      width: 100%;
+      font-size: 1.8rem; letter-spacing: 0.6rem; text-align: center;
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 12px; color: var(--text); padding: 12px 20px; width: 100%;
       transition: border-color 0.2s;
     }
     #pin-input:focus { outline: none; border-color: var(--indigo); }
 
     #login-btn {
-      background: var(--indigo);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      padding: 14px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      width: 100%;
+      background: var(--indigo); color: #fff; border: none; border-radius: 12px;
+      padding: 14px; font-size: 0.95rem; font-weight: 600; cursor: pointer; width: 100%;
       transition: background 0.2s;
     }
     #login-btn:hover { background: var(--indigo-d); }
@@ -109,98 +94,44 @@
     /* ── PANEL ───────────────────────────────────────── */
     #panel { display: none; max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
 
-    /* Status pill */
     #status-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 8px 14px;
-      margin-bottom: 20px;
-      font-size: 0.8rem;
-      color: var(--text-2);
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; padding: 8px 14px; margin-bottom: 20px;
+      font-size: 0.8rem; color: var(--text-2);
     }
     #status-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px rgba(16,185,129,0.6);
-      flex-shrink: 0;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 6px rgba(16,185,129,0.6); flex-shrink: 0;
     }
 
-    /* Section label */
     .section-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-3);
-      margin: 0 0 10px 2px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-3); margin: 0 0 10px 2px;
     }
 
-    /* Card */
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 16px; margin-bottom: 10px;
     }
+    .card-title { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .card-sub   { font-size: 0.75rem; color: var(--text-2); margin-bottom: 10px; line-height: 1.5; }
+    .card-hint  { margin-top: 10px; color: var(--text-3); }
 
-    .card-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 12px;
+    input[type="text"], input[type="url"], input[type="number"], input[type="password"], textarea {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 10px; color: var(--text); padding: 11px 13px;
+      font-size: 1rem; font-family: inherit; transition: border-color 0.15s;
     }
-    .card-sub {
-      font-size: 0.75rem;
-      color: var(--text-2);
-      margin-bottom: 10px;
-      line-height: 1.5;
-    }
-
-    /* Inputs */
-    input[type="text"],
-    input[type="url"],
-    input[type="number"],
-    input[type="password"],
-    textarea {
-      width: 100%;
-      background: var(--surface-2);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      color: var(--text);
-      padding: 11px 13px;
-      font-size: 0.9rem;
-      font-family: inherit;
-      transition: border-color 0.15s;
-    }
-    input:focus, textarea:focus {
-      outline: none;
-      border-color: #383838;
-    }
+    input:focus, textarea:focus { outline: none; border-color: #383838; }
     input::placeholder, textarea::placeholder { color: var(--text-3); }
     textarea { resize: vertical; min-height: 72px; }
 
-    /* Buttons */
     .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      border: none;
-      border-radius: 11px;
-      padding: 13px 16px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-      line-height: 1;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; border: none; border-radius: 11px; padding: 13px 16px;
+      font-size: 0.9rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s; line-height: 1;
     }
     .btn:active { opacity: 0.78; transform: scale(0.99); }
     .btn.loading { opacity: 0.5; pointer-events: none; }
@@ -208,226 +139,119 @@
     .btn-primary  { background: var(--indigo); color: #fff; }
     .btn-green    { background: var(--green);  color: #fff; }
     .btn-red      { background: var(--red);    color: #fff; }
-    .btn-ghost    {
-      background: transparent;
-      color: var(--text-2);
-      border: 1px solid var(--border-2);
-    }
+    .btn-ghost    { background: transparent; color: var(--text-2); border: 1px solid var(--border-2); }
     .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
-    .btn-ghost-red  {
-      background: transparent;
-      color: var(--red);
-      border: 1px solid rgba(239,68,68,0.25);
-    }
+    .btn-ghost-red  { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
     .btn-ghost-red:hover { background: var(--red-bg); }
-    .btn-sm {
-      padding: 8px 12px;
-      font-size: 0.8rem;
-      border-radius: 8px;
-      width: auto;
+    .btn-sm { padding: 8px 12px; font-size: 0.8rem; border-radius: 8px; width: auto; }
+    .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .btn-row   { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-row .btn { flex: 1; }
+
+    /* ── Mode selector ───────────────────────────────── */
+    .mode-selector {
+      display: flex; gap: 6px; margin-bottom: 10px;
     }
-    .btn-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 10px;
+    .mode-btn {
+      flex: 1; padding: 10px 6px; border: 1px solid var(--border-2);
+      border-radius: 11px; background: var(--surface-2); color: var(--text-2);
+      font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      text-align: center; line-height: 1.3; transition: all 0.18s;
+    }
+    .mode-btn:hover { background: var(--surface); color: var(--text); }
+    .mode-btn.active {
+      background: var(--indigo-bg); border-color: var(--indigo); color: #a5b4fc;
+    }
+    #mode-desc {
+      font-size: 0.75rem; color: var(--text-2); line-height: 1.45;
+      padding: 8px 10px; background: var(--surface-2); border-radius: 9px;
     }
 
-    /* Emotion pills */
-    .emotion-row {
-      display: flex;
-      gap: 6px;
-      margin: 10px 0;
-      flex-wrap: wrap;
+    /* ── Tab bar ─────────────────────────────────────── */
+    .tab-bar {
+      display: flex; gap: 4px; margin-bottom: 12px;
+      background: var(--surface-2); padding: 4px; border-radius: 12px;
     }
+    .tab-btn {
+      flex: 1; padding: 8px 4px; border: none; border-radius: 9px;
+      background: transparent; color: var(--text-2);
+      font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      text-align: center; transition: all 0.15s;
+    }
+    .tab-btn.active { background: var(--surface); color: var(--text); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Emotion pills ───────────────────────────────── */
+    .emotion-row { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
     .emotion-btn {
-      background: var(--surface-2);
-      border: 1px solid var(--border-2);
-      border-radius: 999px;
-      color: var(--text-2);
-      padding: 6px 12px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.15s;
-      white-space: nowrap;
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 999px; color: var(--text-2); padding: 6px 12px;
+      font-size: 0.8rem; cursor: pointer; transition: all 0.15s; white-space: nowrap;
     }
-    .emotion-btn.active {
-      border-color: var(--indigo);
-      background: var(--indigo-bg);
-      color: #a5b4fc;
-    }
+    .emotion-btn.active { border-color: var(--indigo); background: var(--indigo-bg); color: #a5b4fc; }
 
-    /* Quick phrases grid */
-    .quick-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
+    /* ── Quick phrases ───────────────────────────────── */
+    .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .quick-btn {
-      background: var(--surface-2);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      color: var(--text-2);
-      padding: 11px 10px;
-      font-size: 0.8rem;
-      font-family: inherit;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
-      line-height: 1.3;
+      background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 10px;
+      color: var(--text-2); padding: 11px 10px; font-size: 0.8rem; font-family: inherit;
+      cursor: pointer; text-align: center; transition: all 0.15s; line-height: 1.3;
     }
     .quick-btn:active { background: var(--indigo-bg); border-color: var(--indigo); color: #a5b4fc; }
 
-    /* Toggle row */
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
+    /* ── Toggle ──────────────────────────────────────── */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .toggle-label { font-size: 0.88rem; color: var(--text); }
     .toggle-sub   { font-size: 0.75rem; color: var(--text-2); margin-top: 3px; }
     .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
     .slider {
-      position: absolute; inset: 0;
-      background: var(--border-2); border-radius: 26px;
+      position: absolute; inset: 0; background: var(--border-2); border-radius: 26px;
       cursor: pointer; transition: 0.25s;
     }
     .slider:before {
-      content: ''; position: absolute;
-      width: 18px; height: 18px; left: 4px; bottom: 4px;
+      content: ''; position: absolute; width: 18px; height: 18px; left: 4px; bottom: 4px;
       background: #fff; border-radius: 50%; transition: 0.25s;
     }
     input:checked + .slider { background: var(--green); }
     input:checked + .slider:before { transform: translateX(20px); }
 
-    /* Spotlight row */
-    .layout-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
+    /* ── Spotlight ───────────────────────────────────── */
+    .layout-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .layout-info .layout-title { font-size: 0.88rem; font-weight: 600; color: var(--text); }
     .layout-info .layout-desc  { font-size: 0.75rem; color: var(--text-2); margin-top: 3px; }
-
     #btn-spotlight {
-      background: var(--surface-2);
-      color: var(--text-2);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      padding: 9px 14px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
+      background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border-2);
+      border-radius: 10px; padding: 9px 14px; font-size: 0.82rem; font-weight: 600;
+      font-family: inherit; cursor: pointer; white-space: nowrap; transition: all 0.2s;
     }
-    #btn-spotlight.active {
-      background: var(--indigo-bg);
-      border-color: var(--indigo);
-      color: #a5b4fc;
-    }
+    #btn-spotlight.active { background: var(--indigo-bg); border-color: var(--indigo); color: #a5b4fc; }
 
-    /* Transmit block */
-    .transmit-block { display: flex; flex-direction: column; gap: 8px; }
-    .transmit-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-3);
-    }
-    .transmit-divider {
-      text-align: center;
-      font-size: 0.72rem;
-      color: var(--text-3);
-      margin: 12px 0;
-      position: relative;
-    }
-    .transmit-divider::before, .transmit-divider::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      width: 32%;
-      height: 1px;
-      background: var(--border);
-    }
-    .transmit-divider::before { left: 0; }
-    .transmit-divider::after  { right: 0; }
-    .url-row { display: flex; gap: 6px; }
-    .url-row input { flex: 1; min-width: 0; }
-    .url-go { white-space: nowrap; flex-shrink: 0; width: auto; padding: 0 16px; }
-    .card-hint { margin-top: 10px; color: var(--text-3); }
-
-    /* Screen share mode buttons */
-    .screen-modes {
-      display: flex;
-      gap: 6px;
-      margin-top: 10px;
-    }
+    /* ── Screen modes ────────────────────────────────── */
+    .screen-modes { display: flex; gap: 6px; margin-top: 10px; }
     .btn-mode {
-      flex: 1;
-      background: var(--surface-2);
-      color: var(--text-2);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      padding: 9px 8px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
+      flex: 1; background: var(--surface-2); color: var(--text-2);
+      border: 1px solid var(--border-2); border-radius: 10px; padding: 9px 8px;
+      font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      text-align: center; transition: all 0.2s;
     }
-    .btn-mode.active {
-      background: var(--indigo-bg);
-      border-color: var(--indigo);
-      color: #a5b4fc;
-    }
+    .btn-mode.active { background: var(--indigo-bg); border-color: var(--indigo); color: #a5b4fc; }
     #btn-screenshare-stop {
-      width: 100%;
-      margin-top: 8px;
-      background: var(--red-bg);
-      color: var(--red);
-      border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 10px;
-      padding: 9px 14px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all 0.2s;
+      width: 100%; margin-top: 8px; background: var(--red-bg); color: var(--red);
+      border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; padding: 9px 14px;
+      font-size: 0.82rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s;
     }
 
-    /* Promo box */
-    .promo-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border-2);
-      border-radius: 11px;
-      padding: 12px;
-    }
-    .promo-toggle-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    }
+    /* ── Promo ───────────────────────────────────────── */
+    .promo-box { background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 11px; padding: 12px; }
+    .promo-toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .promo-toggle-label input { width: 15px; height: 15px; cursor: pointer; accent-color: var(--amber); }
     .promo-toggle-label span { font-size: 0.88rem; font-weight: 600; color: var(--amber); }
     .timer-presets { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
     .timer-btn {
-      background: var(--surface);
-      border: 1px solid var(--border-2);
-      border-radius: 8px;
-      color: var(--text-2);
-      padding: 7px 13px;
-      font-size: 0.8rem;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all 0.15s;
+      background: var(--surface); border: 1px solid var(--border-2); border-radius: 8px;
+      color: var(--text-2); padding: 7px 13px; font-size: 0.8rem; font-family: inherit; cursor: pointer;
     }
     .timer-btn:active { background: var(--indigo-bg); border-color: var(--indigo); color: #a5b4fc; }
     .timer-custom-row { display: flex; align-items: center; gap: 6px; }
@@ -435,75 +259,43 @@
     .timer-custom-row span { color: var(--text-2); font-size: 0.85rem; white-space: nowrap; }
     #mp-timer-display { font-size: 0.8rem; color: var(--green); margin-top: 6px; }
 
-    /* File drop */
+    /* ── File drop ───────────────────────────────────── */
     #file-drop {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      border: 1px dashed var(--border-2);
-      border-radius: 11px;
-      padding: 24px 16px;
-      cursor: pointer;
-      gap: 6px;
-      transition: border-color 0.2s, background 0.2s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 1px dashed var(--border-2); border-radius: 11px; padding: 24px 16px;
+      cursor: pointer; gap: 6px; transition: border-color 0.2s, background 0.2s;
     }
     #file-drop:hover { background: var(--surface-2); border-color: #383838; }
     #file-drop .drop-icon { font-size: 1.8rem; }
     #file-name { color: var(--text-2); font-size: 0.85rem; }
 
-    /* Stream status */
+    /* ── Stream status ───────────────────────────────── */
     #stream-status-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--surface-2);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 0.82rem;
-      color: var(--text-2);
+      display: flex; align-items: center; gap: 8px; background: var(--surface-2);
+      border: 1px solid var(--border-2); border-radius: 10px; padding: 10px 14px;
+      font-size: 0.82rem; color: var(--text-2);
     }
-    #stream-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--border-2);
-      flex-shrink: 0;
-    }
+    #stream-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-2); flex-shrink: 0; }
 
-    /* Toast */
+    /* ── Toast ───────────────────────────────────────── */
     #toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #1a1a1a;
-      border: 1px solid #2e2e2e;
-      color: var(--text);
-      padding: 10px 20px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      opacity: 0;
-      transition: opacity 0.25s;
-      pointer-events: none;
-      white-space: nowrap;
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1a1a1a; border: 1px solid #2e2e2e; color: var(--text);
+      padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 0.85rem;
+      opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap;
     }
     #toast.error { background: #1f0b0b; border-color: rgba(239,68,68,0.4); color: #fca5a5; }
     #toast.show  { opacity: 1; }
 
-    /* Divider */
     .divider { height: 1px; background: var(--border); margin: 6px 0; }
-
-    /* Stacked inputs gap */
     .field-stack { display: flex; flex-direction: column; gap: 6px; }
 
-    /* Media preview */
     #mp-preview { display: none; margin-top: 6px; }
-    #mp-preview-img, #mp-preview-vid {
-      width: 100%; max-height: 120px; object-fit: cover;
-      border-radius: 8px; display: none;
-    }
+    #mp-preview-img, #mp-preview-vid { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; display: none; }
+
+    .url-row { display: flex; gap: 6px; }
+    .url-row input { flex: 1; min-width: 0; }
+    .url-go { white-space: nowrap; flex-shrink: 0; width: auto; padding: 0 16px; }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -552,30 +344,45 @@
 <!-- ── PANEL PRINCIPAL ─────────────────────────────── -->
 <div id="panel">
 
-  <!-- Status -->
+  <!-- Status bar -->
   <div id="status-bar">
     <div id="status-dot"></div>
-    <span id="status-text">Avatar conectado — Live activo</span>
+    <span id="status-text">Conectando…</span>
   </div>
 
-  <!-- Stream URL + audio hint -->
+  <!-- Stream URL -->
   <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px">
-    <div style="font-size:0.78rem;color:#a5b4fc;line-height:1.5">
-      🔗 <strong>URL del stream</strong> — úsala en TikTok Live Studio como fuente "Enlace":
-    </div>
+    <div style="font-size:0.78rem;color:#a5b4fc;line-height:1.5">🔗 <strong>URL del stream</strong> — úsala en TikTok Live Studio como fuente "Enlace":</div>
     <div style="display:flex;gap:6px;align-items:center">
       <code style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.25);border-radius:7px;padding:7px 10px;font-size:0.75rem;color:#c7d2fe;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">https://avatar.virtufan.com/?key=live1234</code>
       <button onclick="navigator.clipboard.writeText(STREAM_URL).then(()=>showToast('✓ URL copiada'))" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3);border-radius:7px;color:#a5b4fc;padding:7px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">Copiar</button>
     </div>
-    <div style="font-size:0.74rem;color:#6b7280;line-height:1.4">
-      💡 Antes del live: abre esa URL en Chrome y haz clic una vez para activar el audio.
-    </div>
+    <div style="font-size:0.74rem;color:#6b7280;line-height:1.4">💡 Antes del live: abre esa URL en Chrome y haz clic una vez para activar el audio.</div>
   </div>
 
-  <!-- ── HABLAR ── -->
-  <p class="section-label s-indigo">Voz del avatar</p>
+  <!-- ── 1. MODO DEL AVATAR ── -->
+  <p class="section-label s-violet">Modo del avatar</p>
+  <div class="card s-violet">
+    <div class="mode-selector">
+      <button class="mode-btn" data-mode="conversational" onclick="setMode('conversational')">
+        💬<br>Conversa&shy;cional
+      </button>
+      <button class="mode-btn active" data-mode="agentic" onclick="setMode('agentic')">
+        🤖<br>Agéntico
+      </button>
+      <button class="mode-btn" data-mode="autonomous" onclick="setMode('autonomous')">
+        👁<br>Autónomo
+      </button>
+    </div>
+    <p id="mode-desc" style="font-size:0.75rem;color:var(--text-2);line-height:1.45;padding:8px 10px;background:var(--surface-2);border-radius:9px">
+      Habla + puede mostrar productos, buscar precios, abrir páginas desde el chat.
+    </p>
+  </div>
+
+  <!-- ── 2. INSTRUCCIÓN DIRECTA ── -->
+  <p class="section-label s-indigo">Instrucción directa</p>
   <div class="card s-indigo">
-    <textarea id="speak-text" placeholder="Escribe lo que dirá el avatar…"></textarea>
+    <textarea id="instr-text" placeholder="Escribe lo que dirá o hará el avatar…"></textarea>
     <div class="emotion-row">
       <div class="emotion-btn active" data-e="happy"     onclick="setEmotion(this)">😊 Feliz</div>
       <div class="emotion-btn"        data-e="excited"   onclick="setEmotion(this)">🤩 Emoción</div>
@@ -583,10 +390,17 @@
       <div class="emotion-btn"        data-e="surprised" onclick="setEmotion(this)">😮 Sorpresa</div>
       <div class="emotion-btn"        data-e="sad"       onclick="setEmotion(this)">😢 Triste</div>
     </div>
-    <button class="btn btn-primary" onclick="doSpeak()">▶ Hablar ahora</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost"   onclick="doSpeak()">💬 Solo hablar</button>
+      <button class="btn btn-primary" onclick="doExecute()">🤖 Ejecutar</button>
+    </div>
+    <p style="font-size:0.72rem;color:var(--text-3);margin-top:8px;line-height:1.4">
+      <strong style="color:var(--text-2)">Solo hablar</strong>: dice el texto exacto. &nbsp;|&nbsp;
+      <strong style="color:var(--text-2)">Ejecutar</strong>: el agente decide la acción (buscar, navegar, cotizar…).
+    </p>
   </div>
 
-  <!-- ── FRASES RÁPIDAS ── -->
+  <!-- ── 3. FRASES RÁPIDAS ── -->
   <p class="section-label s-blue">Frases rápidas</p>
   <div class="card s-blue">
     <div class="quick-grid">
@@ -599,99 +413,7 @@
     </div>
   </div>
 
-  <!-- ── QR PERSONALIZADO ── -->
-  <p class="section-label s-amber">QR en pantalla</p>
-  <div class="card s-amber">
-    <div class="field-stack">
-      <input id="qr-link"  type="url"  placeholder="https://wa.me/51999999999  o  link de pago…">
-      <input id="qr-label" type="text" placeholder="Descripción — ej. Mi WhatsApp, Pago Yape…">
-      <input id="qr-speak" type="text" placeholder="Lo que dirá el avatar (opcional)">
-    </div>
-    <div class="btn-group">
-      <button class="btn btn-primary" onclick="doShowQR()">Mostrar QR ahora</button>
-      <button class="btn btn-ghost"   onclick="doHideProduct()">✕ Quitar de pantalla</button>
-    </div>
-  </div>
-
-  <!-- ── TRANSMITIR ── -->
-  <p class="section-label s-green">Transmitir</p>
-  <div class="card s-green">
-    <p class="card-sub">Busca un producto o pega una URL — luego comparte la pantalla en el stream.</p>
-
-    <div class="transmit-block">
-      <p class="transmit-label">Búsqueda automática</p>
-      <input id="showcase-input" type="text" placeholder="ej: auriculares bluetooth baratos">
-      <div class="btn-group">
-        <button type="button" class="btn btn-green" onclick="doShowcase()">🔍 Buscar y mostrar</button>
-        <button type="button" class="btn btn-ghost" onclick="doHideProduct()">✕ Ocultar overlay</button>
-      </div>
-    </div>
-
-    <div class="transmit-divider">o comparte directamente</div>
-
-    <div class="transmit-block">
-      <p class="transmit-label">URL directa</p>
-      <div class="url-row">
-        <input id="url-input" type="url" placeholder="https://amazon.com/...">
-        <button type="button" class="btn btn-primary url-go" onclick="doUrlShare()">🖥️ Abrir y compartir</button>
-      </div>
-    </div>
-
-    <div class="screen-modes">
-      <button type="button" class="btn-mode active" id="btn-mode-presentation" onclick="doScreenshareMode('presentation')">👤 Con avatar</button>
-      <button type="button" class="btn-mode" id="btn-mode-only" onclick="doScreenshareMode('only')">🔲 Pantalla completa</button>
-    </div>
-    <button type="button" id="btn-screenshare-stop" onclick="doScreenshareStop()">✕ Detener pantalla</button>
-  </div>
-
-  <!-- ── MODO AUTÓNOMO ── -->
-  <p class="section-label s-violet">Modo Autónomo</p>
-  <div class="card s-violet">
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Modo Autónomo</div>
-        <div class="toggle-sub">El avatar ve la pantalla y responde los comentarios solo</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="toggle-autonomous" onchange="doToggleAutonomous(this.checked)">
-        <span class="slider"></span>
-      </label>
-    </div>
-    <p class="card-sub card-hint">Requiere pantalla compartida activa. Captura cada 10s y usa visión IA para responder.</p>
-  </div>
-
-  <!-- ── FONDO PERSONALIZADO ── -->
-  <p class="section-label s-pink">Fondo del avatar</p>
-  <div class="card s-pink">
-    <p class="card-sub">Imagen, GIF o video que se muestra detrás del avatar en vivo.</p>
-    <div class="field-stack">
-      <input id="bg-url" type="url" placeholder="URL de imagen, GIF o video (.mp4, .webm)">
-      <button type="button" class="btn btn-ghost" onclick="doBgFromUrl()">🖼️ Aplicar desde URL</button>
-    </div>
-    <div class="transmit-divider" style="margin:12px 0">o sube un archivo</div>
-    <input id="bg-file" type="file" accept="image/*,video/*"
-      style="width:100%;background:var(--surface-2);border:1px solid var(--border-2);border-radius:10px;color:var(--text-2);padding:9px 12px;font-size:0.82rem;font-family:inherit"
-      onchange="doBgFromFile(this)">
-    <div id="bg-preview" style="display:none;margin-top:8px">
-      <img   id="bg-preview-img" style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;display:none">
-      <video id="bg-preview-vid" muted loop playsinline style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;display:none"></video>
-    </div>
-    <button type="button" class="btn btn-ghost" style="margin-top:10px;color:var(--red);border-color:rgba(239,68,68,0.25)" onclick="doClearBackground()">✕ Quitar fondo</button>
-  </div>
-
-  <!-- ── MODO DE VISTA ── -->
-  <p class="section-label s-cyan">Vista</p>
-  <div class="card s-cyan">
-    <div class="layout-row">
-      <div class="layout-info">
-        <div class="layout-title">Modo Spotlight</div>
-        <div class="layout-desc" id="layout-desc">Avatar protagonista, producto en esquina</div>
-      </div>
-      <button id="btn-spotlight" onclick="doToggleSpotlight()">📌 Activar</button>
-    </div>
-  </div>
-
-  <!-- ── MI PRODUCTO ── -->
+  <!-- ── 4. MI PRODUCTO ── -->
   <p class="section-label s-orange">Mi producto</p>
   <div class="card s-orange">
     <p class="card-sub">Mostrá tu propio stock con tu precio y foto o video.</p>
@@ -702,8 +424,6 @@
       <textarea id="mp-desc" rows="3"   placeholder="Características (una por línea, máx 4)"></textarea>
       <input id="mp-stock" type="number" placeholder="Stock disponible (opcional)" min="0">
     </div>
-
-    <!-- Media -->
     <div style="margin-top:10px">
       <p class="card-sub" style="margin-bottom:6px">📷 Foto o video del producto</p>
       <input id="mp-file" type="file" accept="image/*,video/*"
@@ -716,8 +436,6 @@
       <p class="card-sub" style="margin-top:6px">Imágenes hasta 2 MB · Videos hasta 5 MB · O pegá una URL:</p>
       <input id="mp-url" type="url" placeholder="URL de imagen o video (alternativa al archivo)" style="margin-top:4px">
     </div>
-
-    <!-- Promo / oferta -->
     <div class="promo-box" style="margin-top:10px">
       <label class="promo-toggle-label">
         <input type="checkbox" id="mp-promo-on" onchange="mpTogglePromo(this.checked)">
@@ -741,17 +459,91 @@
         <p id="mp-timer-display"></p>
       </div>
     </div>
-
     <div class="btn-group">
       <button class="btn btn-green" onclick="doShowMyProduct(event)">🎯 Mostrar en pantalla</button>
       <button class="btn btn-ghost" onclick="doHideProduct()">✕ Ocultar overlay</button>
     </div>
   </div>
 
-  <!-- ── CONOCIMIENTO ── -->
+  <!-- ── 5. PANTALLA (tabs) ── -->
+  <p class="section-label s-green">Pantalla</p>
+  <div class="card s-green">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="buscar"        onclick="showTab('buscar')">🔍 Buscar</button>
+      <button class="tab-btn"        data-tab="screenshot"    onclick="showTab('screenshot')">🌐 URL / Web</button>
+      <button class="tab-btn"        data-tab="presentacion"  onclick="showTab('presentacion')">📊 Slides</button>
+    </div>
+
+    <!-- Tab: Buscar producto -->
+    <div id="tab-buscar" class="tab-content active">
+      <p class="card-sub">El avatar busca y muestra el producto con info real (Amazon, Alibaba, 1688).</p>
+      <input id="showcase-input" type="text" placeholder="ej: auriculares bluetooth baratos">
+      <div class="btn-group">
+        <button class="btn btn-green" onclick="doShowcase()">🔍 Buscar y mostrar</button>
+        <button class="btn btn-ghost" onclick="doHideProduct()">✕ Ocultar overlay</button>
+      </div>
+    </div>
+
+    <!-- Tab: URL directa / Screenshot -->
+    <div id="tab-screenshot" class="tab-content">
+      <p class="card-sub">Captura cualquier página web y la muestra en el stream. También puedes compartir tu pantalla.</p>
+      <input id="browser-url" type="url" placeholder="https://amazon.com/dp/...">
+      <div class="btn-group" style="margin-top:8px">
+        <button class="btn btn-primary" onclick="doShowBrowser()">📸 Capturar y mostrar</button>
+        <button class="btn btn-ghost-red" onclick="doHideBrowser()">✕ Quitar</button>
+      </div>
+      <div id="browser-status" style="font-size:0.82rem;color:var(--text-2);margin-top:6px;min-height:18px"></div>
+      <div class="divider" style="margin:14px 0"></div>
+      <p style="font-size:0.75rem;color:var(--text-3);margin-bottom:8px">O comparte tu propia pantalla:</p>
+      <div class="url-row">
+        <input id="url-input" type="url" placeholder="Abre una URL y comparte…">
+        <button class="btn btn-ghost url-go" onclick="doUrlShare()">🖥️ Abrir</button>
+      </div>
+      <div class="screen-modes">
+        <button class="btn-mode active" id="btn-mode-presentation" onclick="doScreenshareMode('presentation')">👤 Con avatar</button>
+        <button class="btn-mode"        id="btn-mode-only"         onclick="doScreenshareMode('only')">🔲 Pantalla completa</button>
+      </div>
+      <button id="btn-screenshare-stop" onclick="doScreenshareStop()">✕ Detener pantalla</button>
+    </div>
+
+    <!-- Tab: Presentación -->
+    <div id="tab-presentacion" class="tab-content">
+      <p class="card-sub">El avatar abre Canva slide a slide, describe cada diapositiva con IA y habla en vivo.</p>
+      <div class="field-stack">
+        <input id="present-url"   type="url"    placeholder="Link de Canva o Google Slides…">
+        <input id="present-total" type="number" min="1" max="200" placeholder="Nº de diapositivas (opcional)">
+      </div>
+      <div class="btn-group" id="present-controls-start">
+        <button class="btn btn-primary" onclick="doStartPresentation()">▶ Iniciar presentación</button>
+      </div>
+      <div id="present-controls-nav" style="display:none;gap:6px;margin-top:10px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="doPrevSlide()">◀</button>
+        <span id="present-slide-num" style="flex:1;text-align:center;font-size:0.85rem;color:var(--text-2)">Slide 1</span>
+        <button class="btn btn-primary btn-sm" onclick="doNextSlide()">▶</button>
+        <button class="btn btn-ghost-red btn-sm" onclick="doStopPresentation()">⏹</button>
+      </div>
+      <div id="present-status" style="font-size:0.82rem;color:var(--text-2);margin-top:8px;min-height:18px"></div>
+    </div>
+  </div>
+
+  <!-- ── 6. CÓDIGO QR ── -->
+  <p class="section-label s-amber">Código QR</p>
+  <div class="card s-amber">
+    <div class="field-stack">
+      <input id="qr-link"  type="url"  placeholder="https://wa.me/51999999999  o  link de pago…">
+      <input id="qr-label" type="text" placeholder="Descripción — ej. Mi WhatsApp, Pago Yape…">
+      <input id="qr-speak" type="text" placeholder="Lo que dirá el avatar (opcional)">
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="doShowQR()">Mostrar QR ahora</button>
+      <button class="btn btn-ghost"   onclick="doHideProduct()">✕ Quitar de pantalla</button>
+    </div>
+  </div>
+
+  <!-- ── 7. CONOCIMIENTO ── -->
   <p class="section-label s-teal">Conocimiento del avatar</p>
   <div class="card s-teal">
-    <p class="card-sub">PDF, Excel, Word o TXT — el avatar aprenderá el contenido y lo usará al responder.</p>
+    <p class="card-sub">PDF, Excel, Word o TXT — el avatar aprende el contenido y lo usa al responder.</p>
     <label id="file-drop">
       <span class="drop-icon">📄</span>
       <span id="file-name">Toca para seleccionar archivo</span>
@@ -763,7 +555,59 @@
     <div id="upload-status" style="font-size:0.82rem;color:var(--text-2);min-height:18px;margin-top:6px"></div>
   </div>
 
-  <!-- ── TRANSMISIÓN TIKTOK ── -->
+  <!-- ── 8. AJUSTES ── -->
+  <p class="section-label s-slate">Ajustes</p>
+  <div class="card s-slate">
+
+    <!-- Fondo -->
+    <p style="font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:8px">🖼️ Fondo del avatar</p>
+    <div class="field-stack">
+      <input id="bg-url" type="url" placeholder="URL de imagen, GIF o video (.mp4, .webm)">
+      <button type="button" class="btn btn-ghost" onclick="doBgFromUrl()">Aplicar desde URL</button>
+    </div>
+    <div style="margin-top:6px">
+      <input id="bg-file" type="file" accept="image/*,video/*"
+        style="width:100%;background:var(--surface-2);border:1px solid var(--border-2);border-radius:10px;color:var(--text-2);padding:9px 12px;font-size:0.82rem;font-family:inherit"
+        onchange="doBgFromFile(this)">
+      <div id="bg-preview" style="display:none;margin-top:8px">
+        <img   id="bg-preview-img" style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;display:none">
+        <video id="bg-preview-vid" muted loop playsinline style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;display:none"></video>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost" style="margin-top:8px;color:var(--red);border-color:rgba(239,68,68,0.25)" onclick="doClearBackground()">✕ Quitar fondo</button>
+
+    <div class="divider" style="margin:14px 0"></div>
+
+    <!-- Vista spotlight -->
+    <div class="layout-row">
+      <div class="layout-info">
+        <div class="layout-title">Modo Spotlight</div>
+        <div class="layout-desc" id="layout-desc">Avatar protagonista, producto en esquina</div>
+      </div>
+      <button id="btn-spotlight" onclick="doToggleSpotlight()">📌 Activar</button>
+    </div>
+
+    <div class="divider" style="margin:14px 0"></div>
+
+    <!-- Auto-showcase -->
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Productos automáticos</div>
+        <div class="toggle-sub">El avatar muestra overlay cuando alguien pide un producto en el chat</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggle-showcase" checked onchange="doToggleShowcase(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="divider" style="margin:14px 0"></div>
+
+    <!-- Historial -->
+    <button class="btn btn-ghost" onclick="doReset()" style="font-size:0.85rem">🗑️ Limpiar historial de conversación</button>
+  </div>
+
+  <!-- ── 9. TIKTOK LIVE ── -->
   <p class="section-label s-red">Transmisión TikTok Live</p>
   <div class="card s-red">
     <div id="stream-status-bar" style="margin-bottom:10px">
@@ -775,26 +619,9 @@
       <input id="tiktok-key"    type="text" placeholder="Stream Key (de TikTok Live Studio)">
     </div>
     <div class="btn-group">
-      <button class="btn btn-green" id="btn-go-live" onclick="doGoLive()">🔴 Iniciar Live en TikTok</button>
-      <button class="btn btn-ghost-red" id="btn-stop-live" onclick="doStopLive()" style="display:none">⏹ Detener transmisión</button>
+      <button class="btn btn-green"      id="btn-go-live"   onclick="doGoLive()">🔴 Iniciar Live en TikTok</button>
+      <button class="btn btn-ghost-red"  id="btn-stop-live" onclick="doStopLive()" style="display:none">⏹ Detener transmisión</button>
     </div>
-  </div>
-
-  <!-- ── CONTROL DEL LIVE ── -->
-  <p class="section-label s-slate">Ajustes del live</p>
-  <div class="card s-slate">
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Productos automáticos</div>
-        <div class="toggle-sub">El avatar muestra overlay cuando alguien pide un producto en el chat</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="toggle-showcase" checked onchange="doToggleShowcase(this.checked)">
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="divider" style="margin:12px 0"></div>
-    <button class="btn btn-ghost" onclick="doReset()" style="font-size:0.85rem">🗑️ Limpiar historial de conversación</button>
   </div>
 
 </div>
@@ -803,10 +630,16 @@
 <div id="toast"></div>
 
 <script>
-  const CORRECT_PIN = '1234';
-  const STREAM_KEY = 'live1234';
-  const STREAM_URL = `https://avatar.virtufan.com/?key=${STREAM_KEY}`;
-  let selectedEmotion = 'happy';
+  const CORRECT_PIN = '1977';
+  const STREAM_KEY  = 'live1234';
+  const STREAM_URL  = `https://avatar.virtufan.com/?key=${STREAM_KEY}`;
+
+  let selectedEmotion    = 'happy';
+  let currentAvatarMode  = 'agentic';
+  let autonomousInterval = null;
+  let spotlightActive    = false;
+  let presentSlide       = 0;
+  let screenshareMode    = 'presentation';
 
   // ── Login ──────────────────────────────────────────
   document.getElementById('pin-input').addEventListener('keydown', e => {
@@ -827,6 +660,48 @@
     }
   }
 
+  // ── Modo del avatar ────────────────────────────────
+  const MODE_DESCS = {
+    conversational: 'Solo habla. No muestra productos ni navega desde el chat. Ideal para Q&A pura.',
+    agentic:        'Habla + puede mostrar productos, buscar precios, abrir páginas desde el chat.',
+    autonomous:     'Todo lo anterior + ve la pantalla activa cada 10s con visión IA y responde con contexto visual.',
+  };
+
+  async function setMode(mode) {
+    currentAvatarMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('mode-desc').textContent = MODE_DESCS[mode];
+    if (mode === 'autonomous') {
+      startAutonomousCapture();
+    } else {
+      stopAutonomousCapture();
+    }
+    try {
+      await api('/agent/mode', { mode });
+      showToast(`✓ Modo: ${mode}`);
+    } catch(e) { showToast('Error cambiando modo', true); }
+  }
+
+  function startAutonomousCapture() {
+    if (autonomousInterval) return;
+    autonomousInterval = setInterval(autonomousTick, 10000);
+  }
+
+  function stopAutonomousCapture() {
+    if (autonomousInterval) { clearInterval(autonomousInterval); autonomousInterval = null; }
+  }
+
+  async function autonomousTick() {
+    try {
+      // Pide un screenshot de la sesión activa de browser-agent (si hay presentación)
+      const r = await fetch('/agent/browser-screenshot', { method: 'POST' });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.image) await api('/agent/screenshot', { image: data.image });
+      }
+    } catch { /* silencioso */ }
+  }
+
   // ── Emociones ──────────────────────────────────────
   function setEmotion(el) {
     document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('active'));
@@ -834,53 +709,198 @@
     selectedEmotion = el.dataset.e;
   }
 
-  // ── Hablar ─────────────────────────────────────────
+  // ── Solo hablar ────────────────────────────────────
   async function doSpeak() {
-    const text = document.getElementById('speak-text').value.trim();
+    const text = document.getElementById('instr-text').value.trim();
     if (!text) return showToast('Escribe algo primero', true);
-    const btn = event.currentTarget;
-    btn.classList.add('loading');
     try {
       await api('/ctrl/command', { type: 'speak', text, emotion: selectedEmotion });
       showToast('✓ Hablando…');
-      document.getElementById('speak-text').value = '';
-    } catch(e) {
-      showToast('Error: ' + e.message, true);
-    } finally {
+      document.getElementById('instr-text').value = '';
+    } catch(e) { showToast('Error: ' + e.message, true); }
+  }
+
+  // ── Ejecutar como agente ───────────────────────────
+  async function doExecute() {
+    const text = document.getElementById('instr-text').value.trim();
+    if (!text) return showToast('Escribe una instrucción', true);
+    const btn = event.currentTarget;
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Procesando…';
+    try {
+      const result = await api('/agent/execute', { instruction: text, emotion: selectedEmotion });
+      // Si el agente devuelve texto, hacer que el avatar lo diga
+      if (result.text) {
+        await api('/ctrl/command', { type: 'speak', text: result.text, emotion: result.emotion || selectedEmotion });
+      }
+      const labels = {
+        speak:         '✓ Hablando…',
+        show_product:  '✓ Buscando y mostrando producto…',
+        get_quotation: '✓ Calculando precio de importación…',
+        show_browser:  '✓ Capturando página web…',
+        ignore:        '↩ El agente ignoró la instrucción',
+      };
+      showToast(labels[result.action] || '✓ Ejecutado');
+      document.getElementById('instr-text').value = '';
+    } catch(e) { showToast('Error: ' + e.message, true); }
+    finally {
       btn.classList.remove('loading');
+      btn.textContent = '🤖 Ejecutar';
     }
   }
 
+  // ── Frases rápidas ─────────────────────────────────
   function quickSpeak(text) {
-    document.getElementById('speak-text').value = text;
+    document.getElementById('instr-text').value = text;
     doSpeak();
   }
 
-  // ── Modo Spotlight ─────────────────────────────────
-  let spotlightActive = false;
-
-  async function doToggleSpotlight() {
-    spotlightActive = !spotlightActive;
-    const btn  = document.getElementById('btn-spotlight');
-    const desc = document.getElementById('layout-desc');
-    if (spotlightActive) {
-      btn.textContent = '🔲 Desactivar';
-      btn.classList.add('active');
-      desc.textContent = 'Producto protagonista, avatar en esquina';
-    } else {
-      btn.textContent = '📌 Activar';
-      btn.classList.remove('active');
-      desc.textContent = 'Avatar protagonista, producto en esquina';
-    }
-    try {
-      await api('/ctrl/command', { type: 'set_layout', mode: spotlightActive ? 'spotlight' : 'normal' });
-      showToast(spotlightActive ? '✓ Modo Spotlight activado' : '✓ Modo Normal activado');
-    } catch(e) {
-      showToast('Error cambiando modo', true);
-    }
+  // ── Tabs de Pantalla ───────────────────────────────
+  function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelector(`.tab-btn[data-tab="${name}"]`).classList.add('active');
   }
 
-  // ── Mi Producto — Promo helpers ────────────────────
+  // ── Buscar y mostrar producto ──────────────────────
+  async function doShowcase() {
+    const query = document.getElementById('showcase-input').value.trim();
+    if (!query) return showToast('Escribe un producto primero', true);
+    const btn = event.currentTarget;
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Buscando…';
+    try {
+      await api('/agent/showcase', { query });
+      showToast('✓ Buscando y mostrando producto…');
+      document.getElementById('showcase-input').value = '';
+    } catch(e) { showToast('Error: ' + e.message, true); }
+    finally { btn.classList.remove('loading'); btn.textContent = '🔍 Buscar y mostrar'; }
+  }
+
+  async function doHideProduct() {
+    try { await api('/ctrl/command', { type: 'hide_product' }); showToast('✓ Overlay oculto'); }
+    catch(e) { showToast('Error', true); }
+  }
+
+  // ── Screenshot / URL directa ───────────────────────
+  async function doShowBrowser() {
+    const url = document.getElementById('browser-url').value.trim();
+    if (!url) return showToast('Pega una URL primero', true);
+    const st = document.getElementById('browser-status');
+    st.textContent = 'Capturando página…';
+    try {
+      await api('/agent/browser-show', { url, duration: 9999 });
+      st.textContent = '✓ Mostrando en stream (presiona ✕ para quitar)';
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+  }
+
+  async function doHideBrowser() {
+    await api('/ctrl/command', { type: 'screenshare_stop' });
+    document.getElementById('browser-status').textContent = 'Pantalla cerrada';
+  }
+
+  async function doUrlShare() {
+    let url = document.getElementById('url-input').value.trim();
+    if (!url) return showToast('Pega una URL primero', true);
+    if (!url.startsWith('http')) url = 'https://' + url;
+    window.open(url, '_blank');
+    await new Promise(r => setTimeout(r, 800));
+    try {
+      await api('/ctrl/command', { type: 'screenshare_request' });
+      showToast('✓ Clic en el avatar para elegir pestaña');
+    } catch(e) { showToast('Error', true); }
+  }
+
+  async function doScreenshareMode(mode) {
+    screenshareMode = mode;
+    document.getElementById('btn-mode-presentation').classList.toggle('active', mode === 'presentation');
+    document.getElementById('btn-mode-only').classList.toggle('active', mode === 'only');
+    try {
+      await api('/ctrl/command', { type: 'screenshare_mode', mode });
+      showToast(mode === 'only' ? '✓ Solo pantalla' : '✓ Con avatar');
+    } catch(e) { showToast('Error', true); }
+  }
+
+  async function doScreenshareStop() {
+    try { await api('/ctrl/command', { type: 'screenshare_stop' }); showToast('✓ Pantalla detenida'); }
+    catch(e) { showToast('Error', true); }
+  }
+
+  // ── Presentación de slides ─────────────────────────
+  async function doStartPresentation() {
+    const url   = document.getElementById('present-url').value.trim();
+    const total = parseInt(document.getElementById('present-total').value) || null;
+    if (!url) return showToast('Pega el link de Canva primero', true);
+    const st  = document.getElementById('present-status');
+    const btn = document.querySelector('#present-controls-start .btn');
+    btn.classList.add('loading');
+    st.textContent = 'Abriendo presentación…';
+    try {
+      const r = await api('/agent/present/start', { url, totalSlides: total });
+      presentSlide = r.slide || 1;
+      document.getElementById('present-slide-num').textContent = `Slide ${presentSlide}${total ? ' / ' + total : ''}`;
+      document.getElementById('present-controls-start').style.display = 'none';
+      document.getElementById('present-controls-nav').style.display   = 'flex';
+      st.textContent = `✓ ${r.title || 'Presentación iniciada'}`;
+    } catch(e) { st.textContent = '✗ ' + e.message; showToast(e.message, true); }
+    finally { btn.classList.remove('loading'); }
+  }
+
+  async function doNextSlide() {
+    const st = document.getElementById('present-status');
+    st.textContent = 'Avanzando…';
+    try {
+      const r = await api('/agent/present/next', {});
+      presentSlide = r.slide || presentSlide + 1;
+      const total = parseInt(document.getElementById('present-total').value) || null;
+      document.getElementById('present-slide-num').textContent = `Slide ${presentSlide}${total ? ' / ' + total : ''}`;
+      st.textContent = `Slide ${presentSlide}`;
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+  }
+
+  async function doPrevSlide() {
+    const st = document.getElementById('present-status');
+    st.textContent = 'Retrocediendo…';
+    try {
+      const r = await api('/agent/present/prev', {});
+      presentSlide = r.slide || Math.max(1, presentSlide - 1);
+      const total = parseInt(document.getElementById('present-total').value) || null;
+      document.getElementById('present-slide-num').textContent = `Slide ${presentSlide}${total ? ' / ' + total : ''}`;
+      st.textContent = `Slide ${presentSlide}`;
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+  }
+
+  async function doStopPresentation() {
+    try {
+      await api('/agent/present/stop', {});
+      document.getElementById('present-controls-nav').style.display   = 'none';
+      document.getElementById('present-controls-start').style.display = 'flex';
+      document.getElementById('present-status').textContent = 'Presentación detenida';
+      presentSlide = 0;
+    } catch(e) { showToast(e.message, true); }
+  }
+
+  // ── QR personalizado ───────────────────────────────
+  async function doShowQR() {
+    const link  = document.getElementById('qr-link').value.trim();
+    const label = document.getElementById('qr-label').value.trim() || 'Código QR';
+    const speak = document.getElementById('qr-speak').value.trim() || `Escaneen este código QR — ${label}!`;
+    if (!link) return showToast('Ingresa un link primero', true);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(link)}`;
+    const btn = event.currentTarget;
+    btn.classList.add('loading');
+    try {
+      await api('/ctrl/command', {
+        type: 'speak_and_show', text: speak, emotion: 'happy',
+        product: { name: label, price: '', image: qrUrl, features: [], qr_url: null, url: link },
+      });
+      showToast('✓ QR en pantalla');
+    } catch(e) { showToast('Error: ' + e.message, true); }
+    finally { btn.classList.remove('loading'); }
+  }
+
+  // ── Mi Producto ────────────────────────────────────
   function mpTogglePromo(on) {
     document.getElementById('mp-promo-fields').style.display = on ? 'block' : 'none';
     if (!on) {
@@ -901,27 +921,20 @@
     if (!val || val < 1) return showToast('Ingresá una cantidad válida de minutos', true);
     if (val > 120) return showToast('Máximo 120 minutos', true);
     mpSetTimer(val * 60);
-    document.getElementById('mp-timer-custom').value = val;
     document.getElementById('mp-timer-display').textContent = `✓ Countdown de ${val} minuto${val !== 1 ? 's' : ''} seleccionado`;
   }
 
-  // ── Mi Producto — preview ──────────────────────────
   function mpPreviewFile(input) {
     const file = input.files[0];
     if (!file) return;
-    const preview    = document.getElementById('mp-preview');
-    const previewImg = document.getElementById('mp-preview-img');
-    const previewVid = document.getElementById('mp-preview-vid');
+    const preview = document.getElementById('mp-preview');
+    const img = document.getElementById('mp-preview-img');
+    const vid = document.getElementById('mp-preview-vid');
     const url = URL.createObjectURL(file);
     if (file.type.startsWith('video/')) {
-      previewImg.style.display = 'none';
-      previewVid.src = url;
-      previewVid.style.display = 'block';
-      previewVid.play().catch(() => {});
+      img.style.display = 'none'; vid.src = url; vid.style.display = 'block'; vid.play().catch(() => {});
     } else {
-      previewVid.style.display = 'none';
-      previewImg.src = url;
-      previewImg.style.display = 'block';
+      vid.style.display = 'none'; img.src = url; img.style.display = 'block';
     }
     preview.style.display = 'block';
   }
@@ -934,128 +947,41 @@
     const stock    = document.getElementById('mp-stock').value.trim();
     const urlField = document.getElementById('mp-url').value.trim();
     const file     = document.getElementById('mp-file').files[0];
-
     if (!name) return showToast('Ingresá el nombre del producto', true);
-
     const btn = e.currentTarget;
-    btn.classList.add('loading');
-    btn.textContent = '⏳ Preparando…';
-
+    btn.classList.add('loading'); btn.textContent = '⏳ Preparando…';
     try {
       let mediaImage = null, mediaVideo = null;
-
       if (file) {
         const MAX = file.type.startsWith('video/') ? 5 * 1024 * 1024 : 2 * 1024 * 1024;
         if (file.size > MAX) { showToast('Archivo muy grande. Usá la URL alternativa.', true); return; }
-        const b64 = await new Promise(res => {
-          const r = new FileReader();
-          r.onload = ev => res(ev.target.result);
-          r.readAsDataURL(file);
-        });
-        if (file.type.startsWith('video/')) mediaVideo = b64;
-        else mediaImage = b64;
+        const b64 = await new Promise(res => { const r = new FileReader(); r.onload = ev => res(ev.target.result); r.readAsDataURL(file); });
+        if (file.type.startsWith('video/')) mediaVideo = b64; else mediaImage = b64;
       } else if (urlField) {
-        if (/\.(mp4|webm|mov|avi)(\?|$)/i.test(urlField)) mediaVideo = urlField;
-        else mediaImage = urlField;
+        if (/\.(mp4|webm|mov|avi)(\?|$)/i.test(urlField)) mediaVideo = urlField; else mediaImage = urlField;
       }
-
       const features = desc.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 4);
       if (stock) features.push(`Stock disponible: ${stock} unidades`);
-
-      const qrUrl = link
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}`
-        : null;
-
+      const qrUrl = link ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}` : null;
       const promoOn   = document.getElementById('mp-promo-on').checked;
       const origPrice = document.getElementById('mp-orig-price').value.trim();
       const promoSecs = promoOn ? parseInt(document.getElementById('mp-timer-secs').value || '0') : 0;
-
       const speakParts = [`¡Miren esto! ${name}`];
       if (promoOn && origPrice && price) speakParts.push(`antes ${origPrice}, hoy por solo ${price}`);
       else if (price) speakParts.push(`por solo ${price}`);
       if (promoSecs > 0) speakParts.push(`oferta válida por ${Math.floor(promoSecs / 60)} minutos`);
       if (stock) speakParts.push(`Tengo ${stock} disponibles`);
       if (link)  speakParts.push('Escaneen el QR para comprarlo ahora');
-
       await api('/ctrl/command', {
-        type:    'speak_and_show',
-        text:    speakParts.join(', ') + '!',
-        emotion: 'excited',
-        product: {
-          name,
-          price:          price || null,
-          original_price: (promoOn && origPrice) ? origPrice : null,
-          promo_seconds:  promoSecs || null,
-          image:          mediaImage,
-          video:          mediaVideo,
-          features,
-          qr_url:         qrUrl,
-          url:            link || null,
-        },
+        type: 'speak_and_show', text: speakParts.join(', ') + '!', emotion: 'excited',
+        product: { name, price: price || null, original_price: (promoOn && origPrice) ? origPrice : null, promo_seconds: promoSecs || null, image: mediaImage, video: mediaVideo, features, qr_url: qrUrl, url: link || null },
       });
-
       showToast('✓ Producto mostrado en pantalla');
-    } catch(err) {
-      showToast('Error: ' + err.message, true);
-    } finally {
-      btn.classList.remove('loading');
-      btn.textContent = '🎯 Mostrar en pantalla';
-    }
+    } catch(err) { showToast('Error: ' + err.message, true); }
+    finally { btn.classList.remove('loading'); btn.textContent = '🎯 Mostrar en pantalla'; }
   }
 
-  // ── Showcase ───────────────────────────────────────
-  async function doShowcase() {
-    const query = document.getElementById('showcase-input').value.trim();
-    if (!query) return showToast('Escribe un producto primero', true);
-    const btn = event.currentTarget;
-    btn.classList.add('loading');
-    btn.textContent = '⏳ Buscando…';
-    try {
-      await api('/agent/showcase', { query });
-      showToast('✓ Buscando y mostrando producto…');
-      document.getElementById('showcase-input').value = '';
-    } catch(e) {
-      showToast('Error: ' + e.message, true);
-    } finally {
-      btn.classList.remove('loading');
-      btn.textContent = '🔍 Buscar y mostrar en pantalla';
-    }
-  }
-
-  async function doHideProduct() {
-    try {
-      await api('/ctrl/command', { type: 'hide_product' });
-      showToast('✓ Overlay oculto');
-    } catch(e) { showToast('Error', true); }
-  }
-
-  // ── QR personalizado ───────────────────────────────
-  async function doShowQR() {
-    const link  = document.getElementById('qr-link').value.trim();
-    const label = document.getElementById('qr-label').value.trim() || 'Código QR';
-    const speak = document.getElementById('qr-speak').value.trim()
-                  || `Escaneen este código QR — ${label}!`;
-    if (!link) return showToast('Ingresa un link primero', true);
-
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(link)}`;
-    const btn = event.currentTarget;
-    btn.classList.add('loading');
-    try {
-      await api('/ctrl/command', {
-        type:    'speak_and_show',
-        text:    speak,
-        emotion: 'happy',
-        product: { name: label, price: '', image: qrUrl, features: [], qr_url: null, url: link },
-      });
-      showToast('✓ QR en pantalla');
-    } catch(e) {
-      showToast('Error: ' + e.message, true);
-    } finally {
-      btn.classList.remove('loading');
-    }
-  }
-
-  // ── Knowledge upload ───────────────────────────────
+  // ── Conocimiento ───────────────────────────────────
   function onFileSelected(input) {
     const file = input.files[0];
     if (!file) return;
@@ -1070,13 +996,10 @@
     if (!file) return;
     const status = document.getElementById('upload-status');
     const btn    = document.getElementById('upload-btn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Procesando…';
-    status.style.color = 'var(--text-2)';
-    status.textContent = 'Subiendo y procesando archivo…';
+    btn.disabled = true; btn.textContent = '⏳ Procesando…';
+    status.style.color = 'var(--text-2)'; status.textContent = 'Subiendo y procesando archivo…';
     try {
-      const form = new FormData();
-      form.append('file', file);
+      const form = new FormData(); form.append('file', file);
       const resp = await fetch('/agent/knowledge', { method: 'POST', body: form });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Error desconocido');
@@ -1087,173 +1010,12 @@
       document.getElementById('file-drop').style.borderColor = 'var(--border-2)';
       showToast(`✓ Conocimiento cargado: ${data.chunks} fragmentos`);
     } catch(e) {
-      status.style.color = 'var(--red)';
-      status.textContent = '✗ Error: ' + e.message;
+      status.style.color = 'var(--red)'; status.textContent = '✗ Error: ' + e.message;
       showToast('Error: ' + e.message, true);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '📤 Cargar al avatar';
-    }
+    } finally { btn.disabled = false; btn.textContent = '📤 Cargar al avatar'; }
   }
 
-  // ── Reset ──────────────────────────────────────────
-  async function doReset() {
-    if (!confirm('¿Borrar historial de conversación?')) return;
-    try {
-      await api('/agent/reset', {});
-      showToast('✓ Historial borrado');
-    } catch(e) { showToast('Error', true); }
-  }
-
-  // ── Toggle showcase automático ─────────────────────
-  async function doToggleShowcase(enabled) {
-    try {
-      await api('/agent/autoshowcase', { enabled });
-      showToast(enabled ? '✓ Showcase automático activado' : '✓ Desactivado');
-    } catch(e) {
-      showToast('Error al cambiar toggle', true);
-      document.getElementById('toggle-showcase').checked = !enabled;
-    }
-  }
-
-  // ── TikTok Live ────────────────────────────────────
-  async function doGoLive() {
-    const server = document.getElementById('tiktok-server').value.trim();
-    const key    = document.getElementById('tiktok-key').value.trim();
-    if (!server || !key) return showToast('Ingresa Server URL y Stream Key', true);
-
-    const tiktokRtmp = `${server.replace(/\/$/, '')}/${key}`;
-    const btn = document.getElementById('btn-go-live');
-    btn.classList.add('loading');
-    btn.textContent = '⏳ Iniciando…';
-    try {
-      const r    = await fetch('/compositor/api/go-live', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tiktokRtmp }),
-      });
-      const data = await r.json();
-      if (data.stream?.error) throw new Error(data.stream.error);
-      showToast('🔴 Live iniciado en TikTok');
-      setStreamActive(true);
-    } catch(e) {
-      showToast('Error: ' + e.message, true);
-      btn.classList.remove('loading');
-      btn.textContent = '🔴 Iniciar Live en TikTok';
-    }
-  }
-
-  async function doStopLive() {
-    const btn = document.getElementById('btn-stop-live');
-    btn.classList.add('loading');
-    try {
-      await fetch('/compositor/api/stop-all', { method: 'POST' });
-      showToast('⏹ Transmisión detenida');
-      setStreamActive(false);
-    } catch(e) {
-      showToast('Error: ' + e.message, true);
-    } finally {
-      btn.classList.remove('loading');
-    }
-  }
-
-  function setStreamActive(active) {
-    const dot    = document.getElementById('stream-dot');
-    const text   = document.getElementById('stream-status-text');
-    const btnGo  = document.getElementById('btn-go-live');
-    const btnStop = document.getElementById('btn-stop-live');
-    if (active) {
-      dot.style.background  = '#ef4444';
-      dot.style.boxShadow   = '0 0 6px rgba(239,68,68,0.6)';
-      dot.style.animation   = 'pulse 1.5s infinite';
-      text.textContent = '🔴 EN VIVO — transmitiendo a TikTok';
-      btnGo.style.display   = 'none';
-      btnStop.style.display = '';
-      btnStop.classList.remove('loading');
-    } else {
-      dot.style.background = 'var(--border-2)';
-      dot.style.boxShadow  = '';
-      dot.style.animation  = '';
-      text.textContent = 'Sin transmisión activa';
-      btnGo.style.display   = '';
-      btnGo.classList.remove('loading');
-      btnGo.textContent = '🔴 Iniciar Live en TikTok';
-      btnStop.style.display = 'none';
-    }
-  }
-
-  async function checkStreamStatus() {
-    try {
-      const r = await fetch('/compositor/health');
-      if (r.ok) {
-        const data = await r.json();
-        setStreamActive(data.streaming === true);
-      }
-    } catch { /* compositor no disponible */ }
-  }
-
-  // ── Status check ───────────────────────────────────
-  async function checkStatus() {
-    try {
-      const r = await fetch('/agent/status');
-      if (r.ok) {
-        const data = await r.json();
-        document.getElementById('status-dot').style.background = 'var(--green)';
-        document.getElementById('status-text').textContent = 'Avatar conectado — Live activo';
-        document.getElementById('toggle-showcase').checked = data.autoShowcaseEnabled !== false;
-      }
-    } catch {
-      document.getElementById('status-dot').style.background = 'var(--red)';
-      document.getElementById('status-text').textContent = 'Sin conexión con el avatar';
-    }
-  }
-
-  // ── Utils ──────────────────────────────────────────
-  // ── Pantalla compartida ────────────────────────────
-  // ── Modo Autónomo ─────────────────────────────────
-  async function doToggleAutonomous(enabled) {
-    try {
-      await api('/ctrl/command', { type: 'set_autonomous', enabled });
-      await api('/agent/autonomous', { enabled });
-      showToast(enabled ? '✓ Modo Autónomo activado' : '✓ Modo Autónomo desactivado');
-    } catch(e) { showToast('Error activando modo autónomo', true); }
-  }
-
-  async function doUrlShare() {
-    let url = document.getElementById('url-input').value.trim();
-    if (!url) return showToast('Pega una URL primero', true);
-    if (!url.startsWith('http')) url = 'https://' + url;
-    window.open(url, '_blank');
-    await new Promise(r => setTimeout(r, 800));
-    await doScreenshareRequest();
-  }
-
-  async function doScreenshareRequest() {
-    try {
-      await api('/ctrl/command', { type: 'screenshare_request' });
-      showToast('✓ Clic en el avatar para elegir pestaña');
-    } catch(e) { showToast('Error', true); }
-  }
-
-  let screenshareMode = 'presentation';
-  async function doScreenshareMode(mode) {
-    screenshareMode = mode;
-    document.getElementById('btn-mode-presentation').classList.toggle('active', mode === 'presentation');
-    document.getElementById('btn-mode-only').classList.toggle('active', mode === 'only');
-    try {
-      await api('/ctrl/command', { type: 'screenshare_mode', mode });
-      showToast(mode === 'only' ? '✓ Solo pantalla' : '✓ Con avatar');
-    } catch(e) { showToast('Error', true); }
-  }
-
-  async function doScreenshareStop() {
-    try {
-      await api('/ctrl/command', { type: 'screenshare_stop' });
-      showToast('✓ Pantalla detenida');
-    } catch(e) { showToast('Error', true); }
-  }
-
-  // ── Fondo personalizado ────────────────────────────
+  // ── Fondo ──────────────────────────────────────────
   async function doBgFromUrl() {
     let url = document.getElementById('bg-url').value.trim();
     if (!url) return showToast('Pega una URL primero', true);
@@ -1266,28 +1028,15 @@
     if (!file) return;
     const MAX = file.type.startsWith('video/') ? 10 * 1024 * 1024 : 3 * 1024 * 1024;
     if (file.size > MAX) return showToast('Archivo muy grande (máx 3 MB imagen / 10 MB video)', true);
-
-    const preview    = document.getElementById('bg-preview');
-    const previewImg = document.getElementById('bg-preview-img');
-    const previewVid = document.getElementById('bg-preview-vid');
+    const preview = document.getElementById('bg-preview');
+    const img = document.getElementById('bg-preview-img');
+    const vid = document.getElementById('bg-preview-vid');
     const objUrl = URL.createObjectURL(file);
     if (file.type.startsWith('video/')) {
-      previewImg.style.display = 'none';
-      previewVid.src = objUrl;
-      previewVid.style.display = 'block';
-      previewVid.play().catch(() => {});
-    } else {
-      previewVid.style.display = 'none';
-      previewImg.src = objUrl;
-      previewImg.style.display = 'block';
-    }
+      img.style.display = 'none'; vid.src = objUrl; vid.style.display = 'block'; vid.play().catch(() => {});
+    } else { vid.style.display = 'none'; img.src = objUrl; img.style.display = 'block'; }
     preview.style.display = 'block';
-
-    const b64 = await new Promise(res => {
-      const r = new FileReader();
-      r.onload = ev => res(ev.target.result);
-      r.readAsDataURL(file);
-    });
+    const b64 = await new Promise(res => { const r = new FileReader(); r.onload = ev => res(ev.target.result); r.readAsDataURL(file); });
     await doSetBackground(b64);
   }
 
@@ -1301,18 +1050,123 @@
   }
 
   async function doSetBackground(url) {
-    try {
-      await api('/ctrl/command', { type: 'set_background', url });
-      showToast(url ? '✓ Fondo aplicado' : '✓ Fondo quitado');
-    } catch(e) { showToast('Error aplicando fondo', true); }
+    try { await api('/ctrl/command', { type: 'set_background', url }); showToast(url ? '✓ Fondo aplicado' : '✓ Fondo quitado'); }
+    catch(e) { showToast('Error aplicando fondo', true); }
   }
 
+  // ── Spotlight ──────────────────────────────────────
+  async function doToggleSpotlight() {
+    spotlightActive = !spotlightActive;
+    const btn  = document.getElementById('btn-spotlight');
+    const desc = document.getElementById('layout-desc');
+    if (spotlightActive) {
+      btn.textContent = '🔲 Desactivar'; btn.classList.add('active');
+      desc.textContent = 'Producto protagonista, avatar en esquina';
+    } else {
+      btn.textContent = '📌 Activar'; btn.classList.remove('active');
+      desc.textContent = 'Avatar protagonista, producto en esquina';
+    }
+    try {
+      await api('/ctrl/command', { type: 'set_layout', mode: spotlightActive ? 'spotlight' : 'normal' });
+      showToast(spotlightActive ? '✓ Modo Spotlight activado' : '✓ Modo Normal activado');
+    } catch(e) { showToast('Error cambiando modo', true); }
+  }
+
+  // ── Toggle showcase automático ─────────────────────
+  async function doToggleShowcase(enabled) {
+    try {
+      await api('/agent/autoshowcase', { enabled });
+      showToast(enabled ? '✓ Showcase automático activado' : '✓ Desactivado');
+    } catch(e) {
+      showToast('Error al cambiar toggle', true);
+      document.getElementById('toggle-showcase').checked = !enabled;
+    }
+  }
+
+  // ── Limpiar historial ──────────────────────────────
+  async function doReset() {
+    if (!confirm('¿Borrar historial de conversación?')) return;
+    try { await api('/agent/reset', {}); showToast('✓ Historial borrado'); }
+    catch(e) { showToast('Error', true); }
+  }
+
+  // ── TikTok Live ────────────────────────────────────
+  async function doGoLive() {
+    const server = document.getElementById('tiktok-server').value.trim();
+    const key    = document.getElementById('tiktok-key').value.trim();
+    if (!server || !key) return showToast('Ingresa Server URL y Stream Key', true);
+    const tiktokRtmp = `${server.replace(/\/$/, '')}/${key}`;
+    const btn = document.getElementById('btn-go-live');
+    btn.classList.add('loading'); btn.textContent = '⏳ Iniciando…';
+    try {
+      const r = await fetch('/compositor/api/go-live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tiktokRtmp }) });
+      const data = await r.json();
+      if (data.stream?.error) throw new Error(data.stream.error);
+      showToast('🔴 Live iniciado en TikTok');
+      setStreamActive(true);
+    } catch(e) {
+      showToast('Error: ' + e.message, true);
+      btn.classList.remove('loading'); btn.textContent = '🔴 Iniciar Live en TikTok';
+    }
+  }
+
+  async function doStopLive() {
+    const btn = document.getElementById('btn-stop-live');
+    btn.classList.add('loading');
+    try { await fetch('/compositor/api/stop-all', { method: 'POST' }); showToast('⏹ Transmisión detenida'); setStreamActive(false); }
+    catch(e) { showToast('Error: ' + e.message, true); }
+    finally { btn.classList.remove('loading'); }
+  }
+
+  function setStreamActive(active) {
+    const dot  = document.getElementById('stream-dot');
+    const text = document.getElementById('stream-status-text');
+    const go   = document.getElementById('btn-go-live');
+    const stop = document.getElementById('btn-stop-live');
+    if (active) {
+      dot.style.background = '#ef4444'; dot.style.boxShadow = '0 0 6px rgba(239,68,68,0.6)'; dot.style.animation = 'pulse 1.5s infinite';
+      text.textContent = '🔴 EN VIVO — transmitiendo a TikTok';
+      go.style.display = 'none'; stop.style.display = ''; stop.classList.remove('loading');
+    } else {
+      dot.style.background = 'var(--border-2)'; dot.style.boxShadow = ''; dot.style.animation = '';
+      text.textContent = 'Sin transmisión activa';
+      go.style.display = ''; go.classList.remove('loading'); go.textContent = '🔴 Iniciar Live en TikTok';
+      stop.style.display = 'none';
+    }
+  }
+
+  async function checkStreamStatus() {
+    try {
+      const r = await fetch('/compositor/health');
+      if (r.ok) { const data = await r.json(); setStreamActive(data.streaming === true); }
+    } catch { /* compositor no disponible */ }
+  }
+
+  // ── Status & sync ──────────────────────────────────
+  async function checkStatus() {
+    try {
+      const r = await fetch('/agent/status');
+      if (r.ok) {
+        const data = await r.json();
+        document.getElementById('status-dot').style.background = 'var(--green)';
+        document.getElementById('status-text').textContent = 'Avatar conectado — Live activo';
+        document.getElementById('toggle-showcase').checked = data.autoShowcaseEnabled !== false;
+        // Sync mode selector
+        if (data.mode && data.mode !== currentAvatarMode) {
+          currentAvatarMode = data.mode;
+          document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === data.mode));
+          document.getElementById('mode-desc').textContent = MODE_DESCS[data.mode] || '';
+        }
+      }
+    } catch {
+      document.getElementById('status-dot').style.background = 'var(--red)';
+      document.getElementById('status-text').textContent = 'Sin conexión con el avatar';
+    }
+  }
+
+  // ── API helpers ────────────────────────────────────
   async function api(path, body) {
-    const r = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
   }
@@ -1323,6 +1177,11 @@
     t.className = 'toast show' + (isError ? ' error' : '');
     clearTimeout(t._timer);
     t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
 </script>
 </body>

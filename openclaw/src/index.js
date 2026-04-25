@@ -8,12 +8,14 @@ const path    = require('path');
 const multer  = require('multer');
 
 // LLM router — Groq 3-tier
-const { chatCompletion, MODELS } = require('./router');
+const { chatCompletion, visionCompletion, MODELS } = require('./router');
 
 // Skills
 const { searchProduct }                          = require('./skills/browser');
 const { showProduct   }                          = require('./skills/showcase');
 const { calculateImport, formatQuotationSpeech } = require('./skills/quotation');
+const { screenshot: browserScreenshot }          = require('./skills/browser-control');
+const { startPresentation, nextSlide, prevSlide, stopPresentation, getState: getPresentationState } = require('./skills/presentation');
 
 // Reflex layer — respuestas instantáneas sin LLM
 const { reflexCheck } = require('./reflex');
@@ -53,11 +55,13 @@ ${(identity.rules || []).map(r => `- ${r}`).join('\n')}
 
 IMPORTANTE: Responde SIEMPRE en formato JSON valido con esta estructura exacta:
 {
-  "action": "speak" | "show_product" | "get_quotation" | "ignore",
+  "action": "speak" | "show_product" | "get_quotation" | "show_browser" | "ignore",
   "text": "Lo que dira el avatar (1-3 oraciones cortas, en español)",
   "emotion": "neutral" | "happy" | "excited" | "surprised" | "thinking",
   "query": "(solo si show_product o get_quotation) URL o termino de busqueda del producto",
-  "quantity": 1
+  "url": "(solo si show_browser) URL completa https://... a mostrar en pantalla",
+  "quantity": 1,
+  "duration": 20
 }
 
 Cuando usar cada action:
@@ -67,6 +71,9 @@ Cuando usar cada action:
 - "get_quotation" : cuando alguien pregunta cuanto cuesta importar, precio en Peru,
                     cuanto sale traer, cuanto es el costo total, precio Lima, etc.
                     Incluir "query" con el nombre del producto y "quantity" si especifica cantidad.
+- "show_browser"  : cuando alguien pide ver una pagina web, tienda, o quiere que muestres
+                    algo en pantalla. Solo usar si tienes una URL real (https://...).
+                    Siempre usa "duration": 9999 (la pantalla no desaparece sola).
 - "ignore"        : spam, irrelevante, repetido, sin contexto
 
 Ejemplos:
@@ -74,6 +81,8 @@ Ejemplos:
   "cuanto cuesta el iPhone 15 en Peru" → get_quotation, query: "iPhone 15", quantity: 1
   "cuanto sale traer 10 auriculares de China" → get_quotation, query: "auriculares bluetooth 1688", quantity: 10
   "precio importar laptop gaming" → get_quotation, query: "laptop gaming", quantity: 1
+  "muestrame Amazon" → show_browser, url: "https://www.amazon.com", duration: 20
+  "abre Alibaba" → show_browser, url: "https://www.alibaba.com", duration: 20
 
 Si el mensaje no merece respuesta (spam, ofensivo, sin sentido), usa "action": "ignore".
 Para regalos y nuevos seguidores, siempre responde con emotion "surprised" o "excited".`;
@@ -81,7 +90,10 @@ Para regalos y nuevos seguidores, siempre responde con emotion "surprised" o "ex
 // ---------------------------------------------------------------------------
 // Estado global del agente
 // ---------------------------------------------------------------------------
-let autoShowcaseEnabled = true; // se puede activar/desactivar desde el panel
+let autoShowcaseEnabled   = true;     // se puede activar/desactivar desde el panel
+let currentMode           = 'agentic'; // 'conversational' | 'agentic' | 'autonomous'
+let autonomousModeEnabled = false;     // true cuando currentMode === 'autonomous'
+let latestScreenshot      = null;      // { data: base64jpeg, ts: Date.now() }
 
 // ---------------------------------------------------------------------------
 // Historial de conversacion (ventana deslizante)
@@ -125,10 +137,26 @@ async function processChat(msg) {
   let parsed;
 
   try {
-    const raw = await chatCompletion(
-      [{ role: 'system', content: fullSystem }, ...conversationHistory],
-      { temperature: 0.8, maxTokens: 300 },
-    );
+    const screenshot = autonomousModeEnabled && latestScreenshot &&
+      (Date.now() - latestScreenshot.ts < 30000) ? latestScreenshot.data : null;
+
+    let raw;
+    if (screenshot) {
+      console.log('[Autónomo] Usando vision model con screenshot de pantalla');
+      raw = await visionCompletion([
+        { role: 'system', content: fullSystem + '\n\nMODO AUTÓNOMO ACTIVO: La imagen adjunta es captura en vivo de la pantalla que estás mostrando. Úsala para responder preguntas específicas: precios, características, disponibilidad, comparaciones.' },
+        ...conversationHistory.slice(0, -1).slice(-6),
+        { role: 'user', content: [
+          { type: 'image_url', image_url: { url: screenshot } },
+          { type: 'text', text: userMessage },
+        ]},
+      ]);
+    } else {
+      raw = await chatCompletion(
+        [{ role: 'system', content: fullSystem }, ...conversationHistory],
+        { temperature: 0.8, maxTokens: 300 },
+      );
+    }
 
     addToHistory('assistant', raw);
 
@@ -140,6 +168,11 @@ async function processChat(msg) {
   } catch (err) {
     console.error('[LLM] Error procesando mensaje:', err.message);
     return { action: 'ignore', error: err.message };
+  }
+
+  // Modo conversacional: forzar solo hablar desde el CHAT (operador puede ejecutar libremente)
+  if (currentMode === 'conversational' && parsed.action !== 'ignore' && msg.platform !== 'panel') {
+    parsed.action = 'speak';
   }
 
   // Guardar interaccion en memoria (async, no bloquea la respuesta)
@@ -183,6 +216,23 @@ async function processChat(msg) {
       action:  'speak',
       text:    parsed.text || 'Un momento, calculo el costo de importacion!',
       emotion: 'thinking',
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Manejar action: show_browser
+  // -------------------------------------------------------------------------
+  if (parsed.action === 'show_browser' && parsed.url) {
+    console.log(`[OpenClaw] show_browser detectado, url: ${parsed.url}`);
+
+    _handleBrowserShow(parsed.url, parsed.text, parsed.duration || 20).catch(err => {
+      console.error('[OpenClaw] Error en show_browser:', err.message);
+    });
+
+    return {
+      action:  'speak',
+      text:    parsed.text || 'Un momento, abro esa pagina!',
+      emotion: parsed.emotion || 'excited',
     };
   }
 
@@ -255,6 +305,39 @@ async function _handleQuotation(query, quantity) {
   );
 }
 
+/**
+ * Captura screenshot de una URL y lo muestra en el canvas del avatar.
+ */
+async function _handleBrowserShow(url, speakText, duration) {
+  const { sendCommand } = require('./skills/showcase');
+
+  try {
+    const result = await browserScreenshot(url);
+    await sendCommand({
+      type:     'show_screenshot',
+      image:    result.image,
+      title:    result.title,
+      url:      url,
+      duration: duration,
+    });
+    if (speakText) {
+      await sendCommand({
+        type:    'speak',
+        text:    speakText,
+        emotion: 'excited',
+      });
+    }
+    console.log(`[BrowserShow] screenshot enviado: ${url} → "${result.title}"`);
+  } catch (err) {
+    console.error(`[BrowserShow] Error con ${url}:`, err.message);
+    await sendCommand({
+      type:    'speak',
+      text:    `No pude abrir esa pagina, pero pueden buscarla directamente.`,
+      emotion: 'neutral',
+    }).catch(() => {});
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Express API
 // ---------------------------------------------------------------------------
@@ -262,7 +345,7 @@ const app = express();
 app.use(express.json());
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status:      'ok',
     models:      MODELS,
@@ -313,15 +396,129 @@ app.post('/api/autoshowcase', (req, res) => {
   res.json({ autoShowcaseEnabled });
 });
 
+// Toggle modo autónomo — el avatar ve la pantalla y responde con contexto visual
+app.post('/api/autonomous', (req, res) => {
+  const { enabled } = req.body;
+  autonomousModeEnabled = enabled === true;
+  if (!autonomousModeEnabled) latestScreenshot = null;
+  console.log(`[OpenClaw] Modo autónomo ${autonomousModeEnabled ? 'ACTIVADO' : 'DESACTIVADO'}`);
+  res.json({ autonomousModeEnabled });
+});
+
+// Cambiar modo del avatar: conversational | agentic | autonomous
+app.post('/api/mode', (req, res) => {
+  const { mode } = req.body;
+  if (!['conversational', 'agentic', 'autonomous'].includes(mode))
+    return res.status(400).json({ error: 'Modo inválido. Usar: conversational, agentic, autonomous' });
+  currentMode           = mode;
+  autonomousModeEnabled = mode === 'autonomous';
+  if (!autonomousModeEnabled) latestScreenshot = null;
+  console.log(`[OpenClaw] Modo cambiado a: ${mode}`);
+  res.json({ mode: currentMode });
+});
+
+// Ejecutar instrucción del operador como agente (LLM decide la acción)
+app.post('/api/execute', async (req, res) => {
+  const { instruction, emotion = 'neutral' } = req.body;
+  if (!instruction) return res.status(400).json({ error: 'instruction requerida' });
+  try {
+    const result = await processChat({
+      platform: 'panel', user: 'operador', text: instruction, type: 'direct', emotion,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[API/execute]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Recibir screenshot desde el panel (para modo autónomo)
+app.post('/api/screenshot', (req, res) => {
+  const { image } = req.body;
+  if (image && image.startsWith('data:image')) {
+    latestScreenshot = { data: image, ts: Date.now() };
+  }
+  res.json({ ok: true });
+});
+
 // Estado actual del agente
 app.get('/api/status', (_req, res) => {
-  res.json({ autoShowcaseEnabled, historySize: conversationHistory.length });
+  res.json({ mode: currentMode, autoShowcaseEnabled, autonomousModeEnabled, historySize: conversationHistory.length });
 });
 
 // Resetear historial de conversacion
 app.post('/api/reset', (_req, res) => {
   conversationHistory.length = 0;
   res.json({ status: 'history cleared' });
+});
+
+// ── Presentación ─────────────────────────────────────────────────────────────
+
+app.post('/api/present/start', async (req, res) => {
+  const { url, totalSlides } = req.body;
+  if (!url) return res.status(400).json({ error: 'url requerida' });
+  try {
+    const result = await startPresentation(url, totalSlides || null);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[API/present/start]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/present/next', async (_req, res) => {
+  try {
+    const result = await nextSlide();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/present/prev', async (_req, res) => {
+  try {
+    const result = await prevSlide();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/present/stop', async (_req, res) => {
+  try {
+    await stopPresentation();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/present/status', (_req, res) => {
+  res.json(getPresentationState());
+});
+
+// Screenshot de la sesión activa de browser-agent (para modo autónomo)
+app.post('/api/browser-screenshot', async (_req, res) => {
+  const BROWSER_AGENT_URL = process.env.BROWSER_AGENT_URL || 'http://browser-agent:5002';
+  try {
+    const r = await fetch(`${BROWSER_AGENT_URL}/session/screenshot`, { method: 'POST' });
+    if (!r.ok) return res.json({ image: null });
+    const data = await r.json();
+    if (data.image) latestScreenshot = { data: data.image, ts: Date.now() };
+    res.json({ image: data.image || null });
+  } catch {
+    res.json({ image: null });
+  }
+});
+
+// Mostrar página web desde el panel (one-shot screenshot)
+app.post('/api/browser-show', async (req, res) => {
+  const { url, duration = 25 } = req.body;
+  if (!url) return res.status(400).json({ error: 'url requerida' });
+  res.json({ status: 'capturing', url });
+  _handleBrowserShow(url, null, duration).catch(err => {
+    console.error('[API/browser-show]', err.message);
+  });
 });
 
 // ---------------------------------------------------------------------------
