@@ -315,6 +315,8 @@ services:
     volumes:
       - ./openclaw/config:/app/config:ro
       - ./openclaw/skills:/app/skills:ro
+      - ./openclaw/src/skills:/app/src/skills:ro
+      - ./openclaw/src/index.js:/app/src/index.js:ro
       - openclaw_sessions:/app/sessions
       - ./cookies:/app/cookies
     environment:
@@ -330,6 +332,7 @@ services:
       CHAT_BRIDGE_HOST: chat-bridge
       CHAT_BRIDGE_PORT: 4000
       MEM0_URL: http://mem0:6789
+      BROWSER_AGENT_URL: http://browser-agent:5002
     networks:
       - influencer-net
     depends_on:
@@ -351,6 +354,29 @@ services:
         limits:
           memory: 4G
           cpus: '2'
+
+  browser-agent:
+    build: ./browser-agent
+    container_name: influencer-browser-agent
+    volumes:
+      - ./browser-agent/server.py:/app/server.py:ro
+    environment:
+      PORT: "5002"
+      HEADLESS: "true"
+    networks:
+      - influencer-net
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; r=urllib.request.urlopen('http://127.0.0.1:5002/health'); sys.exit(0 if b'ok' in r.read() else 1)\""]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
 
   product-hunter:
     build: ./product-hunter

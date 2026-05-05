@@ -13,6 +13,7 @@
 
 const http  = require('http');
 const https = require('https');
+const { chatCompletion } = require('../router');
 
 const CHAT_BRIDGE_HOST = process.env.CHAT_BRIDGE_HOST || 'chat-bridge';
 const CHAT_BRIDGE_PORT = parseInt(process.env.CHAT_BRIDGE_PORT || '4000', 10);
@@ -62,7 +63,7 @@ function postCommand(payload) {
  * @returns {Promise<void>} Resuelve cuando el show_product fue enviado (no espera hide).
  */
 async function showProduct(product, speakText) {
-  const text = speakText || _buildSpeakText(product);
+  const text = speakText != null ? speakText : await generateInfluencerPitch(product);
 
   console.log(`[Showcase] Mostrando: ${product.name} @ ${product.price}`);
 
@@ -98,6 +99,39 @@ async function showProduct(product, speakText) {
 }
 
 /**
+ * Genera un pitch de venta energetico en español usando IA,
+ * enfocado en beneficios de vida diaria (no specs tecnicas).
+ */
+async function generateInfluencerPitch(product) {
+  if (!product.features?.length) return _buildSpeakText(product);
+  try {
+    const features = product.features.slice(0, 6).join(' | ');
+    const pitch = await chatCompletion([
+      {
+        role: 'system',
+        content: `Eres el guionista de una influencer virtual en TikTok Live que presenta productos de importacion.
+Tu trabajo: convertir caracteristicas en un pitch de venta energetico en español.
+Reglas ESTRICTAS:
+- Maximo 2-3 oraciones. Total maximo 40 palabras.
+- Habla directo al espectador ("miren", "imaginen", "ustedes").
+- Menciona el precio de forma emocionante.
+- PROHIBIDO: codecs, Hz, mm, Jack, conector, impedancia, especificaciones tecnicas, "ademas", "tambien".
+- Enfocate en: para que sirve, que problema resuelve, como hace sentir.
+- Termina con una pregunta breve al chat o llamado a accion.
+- Escribe numeros como palabras (excepto el precio).`,
+      },
+      {
+        role: 'user',
+        content: `Producto: ${product.name}\nPrecio: ${product.price}\nCaracteristicas: ${features}\nRating: ${product.rating}/5 en ${product.store}\n\nGenera el pitch:`,
+      },
+    ], { temperature: 0.9, maxTokens: 120 });
+    return pitch?.trim()?.length >= 20 ? pitch.trim() : _buildSpeakText(product);
+  } catch {
+    return _buildSpeakText(product);
+  }
+}
+
+/**
  * Genera texto de presentacion del producto si no se proporciona.
  */
 function _buildSpeakText(product) {
@@ -108,4 +142,4 @@ function _buildSpeakText(product) {
   return `Miren esto! ${name} por solo ${price}.${extra} Que opinan en el chat?`;
 }
 
-module.exports = { showProduct, sendCommand: postCommand };
+module.exports = { showProduct, sendCommand: postCommand, HIDE_DELAY_MS };

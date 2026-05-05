@@ -12,7 +12,7 @@ const OPENCLAW_WEBHOOK_URL = process.env.OPENCLAW_WEBHOOK_URL;
 // --- Express + WebSocket Server ---
 const app = express();
 const server = http.createServer(app);
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 // WebSocket server para enviar comandos al Avatar Frontend
 const wss = new WebSocket.Server({ noServer: true });
@@ -200,6 +200,12 @@ app.get('/health', (req, res) => {
 
 // Enviar comando manual al avatar (para testing o desde N8N)
 app.post('/api/command', (req, res) => {
+  const type = req.body?.type || '?';
+  if (type === 'show_screenshot') {
+    console.log(`[Command] ${type} → ${avatarClients.size} cliente(s) WS (imagen: ${req.body?.image?.length || 0} chars)`);
+  } else {
+    console.log(`[Command] ${type} → ${avatarClients.size} cliente(s) WS`);
+  }
   broadcastToAvatar(req.body);
   res.json({ sent: true });
 });

@@ -360,6 +360,11 @@
     <div style="font-size:0.74rem;color:#6b7280;line-height:1.4">💡 Antes del live: abre esa URL en Chrome y haz clic una vez para activar el audio.</div>
   </div>
 
+  <!-- Limpiar todo -->
+  <div style="padding:0 0 10px">
+    <button class="btn btn-ghost-red" style="width:100%;font-size:0.82rem" onclick="doStopAll()">🛑 Limpiar todo — detener presentación, loop y pantalla</button>
+  </div>
+
   <!-- ── 1. MODO DEL AVATAR ── -->
   <p class="section-label s-violet">Modo del avatar</p>
   <div class="card s-violet">
@@ -470,6 +475,7 @@
   <div class="card s-green">
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="buscar"        onclick="showTab('buscar')">🔍 Buscar</button>
+      <button class="tab-btn"        data-tab="autobrowse"    onclick="showTab('autobrowse')">🛍 Auto</button>
       <button class="tab-btn"        data-tab="screenshot"    onclick="showTab('screenshot')">🌐 URL / Web</button>
       <button class="tab-btn"        data-tab="presentacion"  onclick="showTab('presentacion')">📊 Slides</button>
     </div>
@@ -481,6 +487,21 @@
       <div class="btn-group">
         <button class="btn btn-green" onclick="doShowcase()">🔍 Buscar y mostrar</button>
         <button class="btn btn-ghost" onclick="doHideProduct()">✕ Ocultar overlay</button>
+      </div>
+    </div>
+
+    <!-- Tab: Auto-browse productos -->
+    <div id="tab-autobrowse" class="tab-content">
+      <p class="card-sub">El avatar presenta productos uno a uno con un pitch de venta generado por IA — sin que nadie lo pida.</p>
+      <textarea id="ab-list" rows="5" placeholder="Un producto por línea, ej:&#10;auriculares bluetooth baratos&#10;smartwatch mujer&#10;cargador rápido 65W&#10;mouse gamer inalámbrico"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <label style="font-size:0.82rem;color:var(--text-2);white-space:nowrap">Intervalo (seg):</label>
+        <input id="ab-interval" type="number" min="20" max="3600" value="120" style="width:80px">
+      </div>
+      <div id="ab-status" style="font-size:0.82rem;color:var(--text-2);margin-top:8px;min-height:18px"></div>
+      <div class="btn-group" style="margin-top:10px">
+        <button class="btn btn-green" id="btn-ab-start" onclick="doAutoBrowseStart()">▶ Iniciar loop</button>
+        <button class="btn btn-ghost-red" id="btn-ab-stop" onclick="doAutoBrowseStop()" style="display:none">⏹ Detener</button>
       </div>
     </div>
 
@@ -508,7 +529,7 @@
 
     <!-- Tab: Presentación -->
     <div id="tab-presentacion" class="tab-content">
-      <p class="card-sub">El avatar abre Canva slide a slide, describe cada diapositiva con IA y habla en vivo.</p>
+      <p class="card-sub">Pega el link de Canva o Google Slides. El avatar lo abre, narra cada slide con IA y avanza automáticamente.</p>
       <div class="field-stack">
         <input id="present-url"   type="url"    placeholder="Link de Canva o Google Slides…">
         <input id="present-total" type="number" min="1" max="200" placeholder="Nº de diapositivas (opcional)">
@@ -652,6 +673,7 @@
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('panel').style.display = 'block';
       checkStatus();
+      setInterval(checkStatus, 3000);
       checkStreamStatus();
       setInterval(checkStreamStatus, 10000);
     } else {
@@ -764,6 +786,50 @@
   }
 
   // ── Buscar y mostrar producto ──────────────────────
+  // ── Auto-browse ─────────────────────────────────────────────────────────────
+  let _abPollTimer = null;
+
+  async function doAutoBrowseStart() {
+    const raw = document.getElementById('ab-list').value.trim();
+    if (!raw) return showToast('Escribe al menos un producto', true);
+    const products = raw.split('\n').map(l => l.trim()).filter(Boolean).map(q => ({ query: q }));
+    const intervalMs = (parseInt(document.getElementById('ab-interval').value) || 120) * 1000;
+    try {
+      await api('/agent/autobrowse/start', { products, intervalMs });
+      document.getElementById('btn-ab-start').style.display = 'none';
+      document.getElementById('btn-ab-stop').style.display  = '';
+      showToast(`✓ Loop iniciado — ${products.length} productos`);
+      _abPollStatus();
+    } catch(e) { showToast('Error: ' + e.message, true); }
+  }
+
+  async function doAutoBrowseStop() {
+    try {
+      await api('/agent/autobrowse/stop', {});
+      document.getElementById('btn-ab-start').style.display = '';
+      document.getElementById('btn-ab-stop').style.display  = 'none';
+      document.getElementById('ab-status').textContent = 'Loop detenido.';
+      clearTimeout(_abPollTimer);
+    } catch(e) { showToast('Error: ' + e.message, true); }
+  }
+
+  async function _abPollStatus() {
+    try {
+      const d = await api('/agent/autobrowse/status', null, 'GET');
+      if (!d.enabled) {
+        document.getElementById('ab-status').textContent = 'Loop detenido.';
+        document.getElementById('btn-ab-start').style.display = '';
+        document.getElementById('btn-ab-stop').style.display  = 'none';
+        return;
+      }
+      const curr = d.currentProduct || '—';
+      const next = d.nextProduct    || '—';
+      document.getElementById('ab-status').textContent =
+        `Mostrando: ${curr} · Siguiente: ${next} (${Math.round(d.intervalMs/1000)}s)`;
+    } catch { /* silenciar */ }
+    _abPollTimer = setTimeout(_abPollStatus, 5000);
+  }
+
   async function doShowcase() {
     const query = document.getElementById('showcase-input').value.trim();
     if (!query) return showToast('Escribe un producto primero', true);
@@ -1145,28 +1211,75 @@
   // ── Status & sync ──────────────────────────────────
   async function checkStatus() {
     try {
-      const r = await fetch('/agent/status');
-      if (r.ok) {
-        const data = await r.json();
-        document.getElementById('status-dot').style.background = 'var(--green)';
-        document.getElementById('status-text').textContent = 'Avatar conectado — Live activo';
-        document.getElementById('toggle-showcase').checked = data.autoShowcaseEnabled !== false;
-        // Sync mode selector
-        if (data.mode && data.mode !== currentAvatarMode) {
-          currentAvatarMode = data.mode;
-          document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === data.mode));
-          document.getElementById('mode-desc').textContent = MODE_DESCS[data.mode] || '';
-        }
+      const data = await api('/agent/status', null, 'GET');
+
+      document.getElementById('status-dot').style.background = 'var(--green)';
+      document.getElementById('status-text').textContent = 'Avatar conectado';
+
+      // Toggle showcase
+      document.getElementById('toggle-showcase').checked = data.autoShowcaseEnabled !== false;
+
+      // Modo
+      if (data.mode && data.mode !== currentAvatarMode) {
+        currentAvatarMode = data.mode;
+        document.querySelectorAll('.mode-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.mode === data.mode));
+        document.getElementById('mode-desc').textContent = MODE_DESCS[data.mode] || '';
+        if (data.mode === 'autonomous' && !autonomousInterval) startAutonomousCapture();
+        else if (data.mode !== 'autonomous' && autonomousInterval) stopAutonomousCapture();
       }
+
+      // Presentación — sync controles de slides
+      const p = data.presentation;
+      const navEl   = document.getElementById('present-controls-nav');
+      const startEl = document.getElementById('present-controls-start');
+      if (p?.active) {
+        presentSlide = p.slideNum;
+        startEl.style.display = 'none';
+        navEl.style.display   = 'flex';
+        document.getElementById('present-slide-num').textContent =
+          p.totalSlides ? `Slide ${p.slideNum} / ${p.totalSlides}` : `Slide ${p.slideNum}`;
+        document.getElementById('present-status').textContent = p.title ? `📊 ${p.title}` : '';
+      } else if (navEl.style.display !== 'none') {
+        startEl.style.display = '';
+        navEl.style.display   = 'none';
+        document.getElementById('present-status').textContent = '';
+      }
+
+      // Auto-browse — sync botones
+      const abStart = document.getElementById('btn-ab-start');
+      const abStop  = document.getElementById('btn-ab-stop');
+      if (data.autoBrowseEnabled) {
+        abStart.style.display = 'none';
+        abStop.style.display  = '';
+        const curr = data.autoBrowse?.currentProduct;
+        if (curr) document.getElementById('ab-status').textContent = `Mostrando: ${curr}`;
+      } else {
+        abStart.style.display = '';
+        abStop.style.display  = 'none';
+      }
+
+
+
     } catch {
       document.getElementById('status-dot').style.background = 'var(--red)';
       document.getElementById('status-text').textContent = 'Sin conexión con el avatar';
     }
   }
 
+  async function doStopAll() {
+    try {
+      await api('/agent/stop-all', {});
+      showToast('✓ Todo detenido');
+    } catch(e) { showToast('Error: ' + e.message, true); }
+  }
+
   // ── API helpers ────────────────────────────────────
-  async function api(path, body) {
-    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  async function api(path, body, method = 'POST') {
+    const opts = method === 'GET'
+      ? { method: 'GET' }
+      : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    const r = await fetch(path, opts);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
   }

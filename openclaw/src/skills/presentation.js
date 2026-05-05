@@ -18,7 +18,7 @@ const state = {
   slideNum:    0,
   totalSlides: null,
   title:       null,
-  autoAdvance: true,   // avanza sola al terminar de hablar cada slide
+  autoAdvance: false,  // se activa solo en modo autónomo
 };
 
 let _autoAdvanceTimer = null;
@@ -64,6 +64,7 @@ Describe en 2-3 oraciones cortas EN ESPAÑOL lo que muestra esta diapositiva,
 como si lo estuvieras explicando en vivo a tu audiencia de TikTok.
 Sé directo, energético y claro. No digas "esta diapositiva muestra",
 empieza directamente con el contenido.
+NO saludes ni digas "hola a todos" — la presentación ya está en curso.
 IMPORTANTE: escribe todos los números como palabras en español (uno, dos, veinte...), NUNCA como dígitos.`,
           },
         ],
@@ -185,4 +186,9 @@ function getState() {
   return { ...state };
 }
 
-module.exports = { startPresentation, nextSlide, prevSlide, stopPresentation, getState };
+function setAutoAdvance(enabled) {
+  state.autoAdvance = !!enabled;
+  console.log(`[Presentation] autoAdvance = ${state.autoAdvance}`);
+}
+
+module.exports = { startPresentation, nextSlide, prevSlide, stopPresentation, getState, setAutoAdvance };

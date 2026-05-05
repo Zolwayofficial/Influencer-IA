@@ -15,7 +15,7 @@ const { searchProduct }                          = require('./skills/browser');
 const { showProduct   }                          = require('./skills/showcase');
 const { calculateImport, formatQuotationSpeech } = require('./skills/quotation');
 const { screenshot: browserScreenshot }          = require('./skills/browser-control');
-const { startPresentation, nextSlide, prevSlide, stopPresentation, getState: getPresentationState } = require('./skills/presentation');
+const { startPresentation, nextSlide, prevSlide, stopPresentation, getState: getPresentationState, setAutoAdvance } = require('./skills/presentation');
 
 // Reflex layer — respuestas instantáneas sin LLM
 const { reflexCheck } = require('./reflex');
@@ -55,7 +55,7 @@ ${(identity.rules || []).map(r => `- ${r}`).join('\n')}
 
 IMPORTANTE: Responde SIEMPRE en formato JSON valido con esta estructura exacta:
 {
-  "action": "speak" | "show_product" | "get_quotation" | "show_browser" | "ignore",
+  "action": "speak" | "show_product" | "get_quotation" | "show_browser" | "describe_slide" | "next_slide" | "prev_slide" | "ignore",
   "text": "Lo que dira el avatar (1-3 oraciones cortas, en español)",
   "emotion": "neutral" | "happy" | "excited" | "surprised" | "thinking",
   "query": "(solo si show_product o get_quotation) URL o termino de busqueda del producto",
@@ -65,16 +65,23 @@ IMPORTANTE: Responde SIEMPRE en formato JSON valido con esta estructura exacta:
 }
 
 Cuando usar cada action:
-- "speak"         : respuesta normal al chat
-- "show_product"  : cuando alguien pide ver/mostrar un producto especifico
-                    Incluir "query" con la URL o nombre del producto.
-- "get_quotation" : cuando alguien pregunta cuanto cuesta importar, precio en Peru,
-                    cuanto sale traer, cuanto es el costo total, precio Lima, etc.
-                    Incluir "query" con el nombre del producto y "quantity" si especifica cantidad.
-- "show_browser"  : cuando alguien pide ver una pagina web, tienda, o quiere que muestres
-                    algo en pantalla. Solo usar si tienes una URL real (https://...).
-                    Siempre usa "duration": 9999 (la pantalla no desaparece sola).
-- "ignore"        : spam, irrelevante, repetido, sin contexto
+- "speak"          : respuesta normal al chat
+- "show_product"   : cuando alguien pide ver/mostrar un producto especifico
+                     Incluir "query" con la URL o nombre del producto.
+- "get_quotation"  : cuando alguien pregunta cuanto cuesta importar, precio en Peru,
+                     cuanto sale traer, cuanto es el costo total, precio Lima, etc.
+                     Incluir "query" con el nombre del producto y "quantity" si especifica cantidad.
+- "show_browser"   : cuando alguien pide ver una pagina web, tienda, o quiere que muestres
+                     algo en pantalla. Solo usar si tienes una URL real (https://...).
+                     Siempre usa "duration": 9999 (la pantalla no desaparece sola).
+- "describe_slide" : cuando te piden exponer, describir, hablar de, o explicar la diapositiva actual.
+                     Usaras vision IA para ver la diapositiva y describir su contenido en voz.
+                     Palabras clave: "expón", "describe", "qué dice ahí", "explica esto", "habla de esto".
+- "next_slide"     : cuando te piden avanzar, siguiente diapositiva, continuar la presentacion.
+                     Palabras clave: "siguiente", "avanza", "próxima", "continua", "pasa la diapositiva".
+- "prev_slide"     : cuando te piden volver atrás, diapositiva anterior.
+                     Palabras clave: "anterior", "regresa", "atrás", "vuelve".
+- "ignore"         : spam, irrelevante, repetido, sin contexto
 
 Ejemplos:
   "muestra ese auricular"  → show_product, query: "auriculares bluetooth Amazon"
@@ -83,6 +90,11 @@ Ejemplos:
   "precio importar laptop gaming" → get_quotation, query: "laptop gaming", quantity: 1
   "muestrame Amazon" → show_browser, url: "https://www.amazon.com", duration: 20
   "abre Alibaba" → show_browser, url: "https://www.alibaba.com", duration: 20
+  "expón la diapositiva" → describe_slide
+  "explica esto" → describe_slide
+  "siguiente diapositiva" → next_slide
+  "avanza" → next_slide
+  "regresa" → prev_slide
 
 Si el mensaje no merece respuesta (spam, ofensivo, sin sentido), usa "action": "ignore".
 Para regalos y nuevos seguidores, siempre responde con emotion "surprised" o "excited".`;
@@ -94,6 +106,15 @@ let autoShowcaseEnabled   = true;     // se puede activar/desactivar desde el pa
 let currentMode           = 'agentic'; // 'conversational' | 'agentic' | 'autonomous'
 let autonomousModeEnabled = false;     // true cuando currentMode === 'autonomous'
 let latestScreenshot      = null;      // { data: base64jpeg, ts: Date.now() }
+
+// Auto-browse product loop
+let autoBrowseEnabled    = false;
+let autoBrowseList       = [];          // [{ query: string, label?: string }]
+let autoBrowseIndex      = 0;
+let autoBrowseIntervalMs = 120_000;    // default 2 min
+let autoBrowseTimer      = null;
+let autoBrowseBusy       = false;
+const AUTO_BROWSE_MIN_WAIT = 21_000;   // min wait inside loop (showcase hide + buffer)
 
 // ---------------------------------------------------------------------------
 // Historial de conversacion (ventana deslizante)
@@ -236,6 +257,24 @@ async function processChat(msg) {
     };
   }
 
+  // -------------------------------------------------------------------------
+  // Manejar actions de presentación: describe_slide, next_slide, prev_slide
+  // -------------------------------------------------------------------------
+  if (['describe_slide', 'next_slide', 'prev_slide'].includes(parsed.action)) {
+    console.log(`[OpenClaw] slide action detectada: ${parsed.action}`);
+    // La presentation skill ya habla al avanzar — NO devolver ack con contenido inventado
+    _handleSlideAction(parsed.action).catch(err => {
+      console.error('[OpenClaw] Error en slide action:', err.message);
+    });
+    const ackText = {
+      describe_slide: '',  // presentation skill habla con vision real
+      next_slide:     '',  // presentation skill describe el nuevo slide
+      prev_slide:     '',  // presentation skill describe el slide anterior
+    };
+    const ack = ackText[parsed.action];
+    return ack ? { action: 'speak', text: ack, emotion: parsed.emotion || 'excited' } : { action: 'ignore' };
+  }
+
   return parsed;
 }
 
@@ -245,14 +284,17 @@ async function processChat(msg) {
  * 2. Muestra el overlay en el avatar
  */
 async function _handleProductShowcase(query) {
-  const product = await searchProduct(query);
-
-  if (!product.found && product.error) {
-    console.warn(`[Showcase] Producto no encontrado: ${product.error}`);
-    return;
+  const wasRunning = _pauseAutoBrowse();
+  try {
+    const product = await searchProduct(query);
+    if (!product.found && product.error) {
+      console.warn(`[Showcase] Producto no encontrado: ${product.error}`);
+      return;
+    }
+    await showProduct(product, null);
+  } finally {
+    if (wasRunning) _resumeAutoBrowse();
   }
-
-  await showProduct(product, null);
 }
 
 /**
@@ -306,6 +348,61 @@ async function _handleQuotation(query, quantity) {
 }
 
 /**
+ * Controla la presentación activa desde el agente:
+ * - describe_slide: toma screenshot actual y describe con vision IA
+ * - next_slide / prev_slide: avanza o retrocede y describe
+ */
+async function _handleSlideAction(action) {
+  const { sendCommand } = require('./skills/showcase');
+  const pState = getPresentationState();
+
+  if (!pState.active) {
+    await sendCommand({
+      type:    'speak',
+      text:    'No hay una presentación activa en este momento.',
+      emotion: 'neutral',
+    }).catch(() => {});
+    return;
+  }
+
+  try {
+    if (action === 'next_slide') {
+      await nextSlide();
+    } else if (action === 'prev_slide') {
+      await prevSlide();
+    } else {
+      // describe_slide: tomar screenshot fresco y describir con vision
+      const BROWSER_AGENT_URL = process.env.BROWSER_AGENT_URL || 'http://browser-agent:5002';
+      const r = await fetch(`${BROWSER_AGENT_URL}/session/screenshot`, { method: 'POST' });
+      if (!r.ok) throw new Error(`browser-agent screenshot → HTTP ${r.status}`);
+      const data = await r.json();
+      if (!data.image) throw new Error('Sin imagen del browser-agent');
+
+      const { visionCompletion } = require('./router');
+      const slideCtx = pState.totalSlides
+        ? `diapositiva ${pState.slideNum} de ${pState.totalSlides}`
+        : `diapositiva ${pState.slideNum}`;
+      const speech = await visionCompletion([{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: data.image } },
+          { type: 'text', text: `Eres un presentador virtual de una masterclass de importaciones. Esta es la ${slideCtx}. Describe en 2-3 oraciones cortas EN ESPAÑOL lo que muestra esta diapositiva, como si lo estuvieras explicando en vivo a tu audiencia de TikTok. Sé directo y energético. No digas "esta diapositiva muestra", empieza con el contenido. Escribe los números como palabras.` },
+        ],
+      }], { maxTokens: 200 });
+
+      await sendCommand({ type: 'speak', text: speech.trim(), emotion: 'excited' });
+    }
+  } catch (err) {
+    console.error(`[SlideAction] Error en ${action}:`, err.message);
+    await sendCommand({
+      type:    'speak',
+      text:    'Hubo un problema al acceder a la presentación.',
+      emotion: 'neutral',
+    }).catch(() => {});
+  }
+}
+
+/**
  * Captura screenshot de una URL y lo muestra en el canvas del avatar.
  */
 async function _handleBrowserShow(url, speakText, duration) {
@@ -342,7 +439,43 @@ async function _handleBrowserShow(url, speakText, duration) {
 // Express API
 // ---------------------------------------------------------------------------
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+
+// ── Auto-browse helpers ───────────────────────────────────────────────────────
+
+function _pauseAutoBrowse() {
+  if (autoBrowseEnabled && autoBrowseTimer) {
+    clearTimeout(autoBrowseTimer);
+    autoBrowseTimer = null;
+    return true;
+  }
+  return false;
+}
+
+function _resumeAutoBrowse(delayMs = autoBrowseIntervalMs) {
+  if (autoBrowseEnabled) {
+    autoBrowseTimer = setTimeout(_autoBrowseLoop, delayMs);
+  }
+}
+
+async function _autoBrowseLoop() {
+  if (!autoBrowseEnabled || !autoBrowseList.length) return;
+  autoBrowseBusy = true;
+  const item = autoBrowseList[autoBrowseIndex];
+  autoBrowseIndex = (autoBrowseIndex + 1) % autoBrowseList.length;
+  try {
+    const product = await searchProduct(item.query);
+    if (product.found) {
+      await showProduct(product, null);
+      const waitMs = Math.max(autoBrowseIntervalMs, AUTO_BROWSE_MIN_WAIT);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
+  } catch (err) {
+    console.error('[AutoBrowse] Error:', err.message);
+  }
+  autoBrowseBusy = false;
+  if (autoBrowseEnabled) autoBrowseTimer = setTimeout(_autoBrowseLoop, autoBrowseIntervalMs);
+}
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -413,6 +546,7 @@ app.post('/api/mode', (req, res) => {
   currentMode           = mode;
   autonomousModeEnabled = mode === 'autonomous';
   if (!autonomousModeEnabled) latestScreenshot = null;
+  setAutoAdvance(mode === 'autonomous');
   console.log(`[OpenClaw] Modo cambiado a: ${mode}`);
   res.json({ mode: currentMode });
 });
@@ -443,7 +577,75 @@ app.post('/api/screenshot', (req, res) => {
 
 // Estado actual del agente
 app.get('/api/status', (_req, res) => {
-  res.json({ mode: currentMode, autoShowcaseEnabled, autonomousModeEnabled, historySize: conversationHistory.length });
+  const pState = getPresentationState();
+  const prevIdx = (autoBrowseIndex - 1 + autoBrowseList.length) % (autoBrowseList.length || 1);
+  res.json({
+    mode: currentMode,
+    autoShowcaseEnabled,
+    autonomousModeEnabled,
+    autoBrowseEnabled,
+    autoBrowse: {
+      enabled:        autoBrowseEnabled,
+      currentProduct: autoBrowseList[prevIdx]?.label || autoBrowseList[prevIdx]?.query || null,
+      total:          autoBrowseList.length,
+      intervalMs:     autoBrowseIntervalMs,
+    },
+    presentation: {
+      active:      pState.active,
+      slideNum:    pState.slideNum,
+      totalSlides: pState.totalSlides,
+      title:       pState.title,
+    },
+    historySize: conversationHistory.length,
+  });
+});
+
+// Detener todo de una vez (presentación, auto-browse, modo autónomo, pantalla)
+app.post('/api/stop-all', async (_req, res) => {
+  autoBrowseEnabled = false;
+  if (autoBrowseTimer) { clearTimeout(autoBrowseTimer); autoBrowseTimer = null; }
+  autoBrowseBusy = false;
+  await stopPresentation().catch(() => {});
+  autonomousModeEnabled = false;
+  if (currentMode === 'autonomous') currentMode = 'agentic';
+  latestScreenshot = null;
+  const { sendCommand } = require('./skills/showcase');
+  await sendCommand({ type: 'screenshare_stop' }).catch(() => {});
+  console.log('[OpenClaw] stop-all ejecutado');
+  res.json({ ok: true });
+});
+
+// Auto-browse product loop
+app.post('/api/autobrowse/start', (req, res) => {
+  const { products, intervalMs } = req.body;
+  if (!Array.isArray(products) || !products.length)
+    return res.status(400).json({ error: 'products[] requerido' });
+  if (autoBrowseTimer) clearTimeout(autoBrowseTimer);
+  autoBrowseList       = products;
+  autoBrowseIndex      = 0;
+  autoBrowseEnabled    = true;
+  autoBrowseIntervalMs = intervalMs || 120_000;
+  _autoBrowseLoop();
+  res.json({ ok: true, count: products.length, intervalMs: autoBrowseIntervalMs });
+});
+
+app.post('/api/autobrowse/stop', (_req, res) => {
+  autoBrowseEnabled = false;
+  if (autoBrowseTimer) { clearTimeout(autoBrowseTimer); autoBrowseTimer = null; }
+  autoBrowseBusy = false;
+  res.json({ ok: true, stopped: true });
+});
+
+app.get('/api/autobrowse/status', (_req, res) => {
+  const prevIdx = (autoBrowseIndex - 1 + autoBrowseList.length) % (autoBrowseList.length || 1);
+  res.json({
+    enabled:        autoBrowseEnabled,
+    busy:           autoBrowseBusy,
+    currentProduct: autoBrowseList[prevIdx]?.label || autoBrowseList[prevIdx]?.query || null,
+    nextProduct:    autoBrowseList[autoBrowseIndex]?.label || autoBrowseList[autoBrowseIndex]?.query || null,
+    total:          autoBrowseList.length,
+    intervalMs:     autoBrowseIntervalMs,
+  });
 });
 
 // Resetear historial de conversacion
@@ -457,13 +659,15 @@ app.post('/api/reset', (_req, res) => {
 app.post('/api/present/start', async (req, res) => {
   const { url, totalSlides } = req.body;
   if (!url) return res.status(400).json({ error: 'url requerida' });
-  try {
-    const result = await startPresentation(url, totalSlides || null);
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    console.error('[API/present/start]', err.message);
-    res.status(500).json({ error: err.message });
-  }
+  // Detener auto-browse si estaba corriendo (comparten browser-agent)
+  autoBrowseEnabled = false;
+  if (autoBrowseTimer) { clearTimeout(autoBrowseTimer); autoBrowseTimer = null; }
+  // Return immediately — Canva puede tardar 30-90s en cargar
+  res.json({ ok: true, status: 'starting' });
+  setAutoAdvance(currentMode === 'autonomous');
+  startPresentation(url, totalSlides || null).catch(err =>
+    console.error('[API/present/start]', err.message)
+  );
 });
 
 app.post('/api/present/next', async (_req, res) => {
@@ -508,6 +712,39 @@ app.post('/api/browser-screenshot', async (_req, res) => {
     res.json({ image: data.image || null });
   } catch {
     res.json({ image: null });
+  }
+});
+
+// Narrar frame capturado por el avatar (modo screen share)
+app.post('/api/narrate-frame', async (req, res) => {
+  const { image } = req.body;
+  if (!image || !image.startsWith('data:image')) {
+    return res.status(400).json({ error: 'imagen requerida' });
+  }
+  res.json({ ok: true }); // responder inmediatamente — narración es async
+  try {
+    const { visionCompletion } = require('./router');
+    const { sendCommand }      = require('./skills/showcase');
+    const speech = await visionCompletion([{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: image } },
+        {
+          type: 'text',
+          text: `Eres un presentador virtual de una masterclass de importaciones.
+Describe en 2-3 oraciones cortas EN ESPAÑOL lo que muestra esta diapositiva,
+como si lo estuvieras explicando en vivo a tu audiencia de TikTok.
+Sé directo, energético y claro. No digas "esta diapositiva muestra",
+empieza directamente con el contenido.
+IMPORTANTE: escribe todos los números como palabras en español (uno, dos, veinte...), NUNCA como dígitos.`,
+        },
+      ],
+    }], { maxTokens: 200 });
+    const text = speech.trim();
+    console.log(`[NarrateFrame] ${text.slice(0, 80)}…`);
+    await sendCommand({ type: 'speak', text, emotion: 'excited' });
+  } catch (err) {
+    console.error('[NarrateFrame] Error:', err.message);
   }
 });
 
@@ -582,19 +819,21 @@ app.post('/api/knowledge', upload.single('file'), async (req, res) => {
     pos += CHUNK - OVERLAP;
   }
 
+  // Responde inmediato - mem0 tarda 2+ min por chunk (dedup Groq+Qdrant)
+  res.json({ ok: true, source, chunks: chunks.length, status: 'processing' });
+
   const { addMemory } = require('./memory');
   let saved = 0;
   for (const chunk of chunks) {
     try {
       await addMemory(chunk, 'influencer', { type: 'knowledge', source });
       saved++;
+      console.log('[Knowledge] ' + source + ': chunk ' + saved + '/' + chunks.length + ' OK');
     } catch (err) {
-      console.error('[Knowledge] Error guardando chunk:', err.message);
+      console.error('[Knowledge] chunk failed:', err.message);
     }
   }
-
-  console.log(`[Knowledge] ${source}: ${saved}/${chunks.length} chunks guardados en Mem0`);
-  res.json({ ok: true, source, chunks: saved });
+  console.log('[Knowledge] ' + source + ': done ' + saved + '/' + chunks.length);
 });
 
 // ---------------------------------------------------------------------------

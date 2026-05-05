@@ -28,6 +28,14 @@
   <!-- Contenedor principal del avatar 3D -->
   <div id="avatar"></div>
 
+  <!-- Canvas 2D espejo del WebGL del avatar: TikTok Live Studio no puede capturar
+       canvases WebGL en hardware overlay planes; este canvas 2D (compositor normal)
+       recibe una copia de cada frame del WebGL via drawImage() y es lo que TikTok ve -->
+  <canvas id="avatar-mirror"></canvas>
+
+  <!-- Elemento animado encima del avatar para evitar que Chrome use hardware overlay -->
+  <div id="capture-keepalive" style="position:fixed;top:0;left:0;width:2px;height:2px;pointer-events:none;opacity:0.001;z-index:5;background:#000"></div>
+
   <!-- Fondo personalizado en video -->
   <video id="bg-video" autoplay muted loop playsinline></video>
 

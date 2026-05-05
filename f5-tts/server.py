@@ -130,6 +130,31 @@ async def _synthesize_edge(text: str):
     return b"".join(audio_chunks), timepoints  # MP3, word boundaries
 
 
+def _normalize_spanish_numbers(text: str) -> str:
+    """Convierte formatos anglosajones a texto que gTTS pronuncia en español.
+    Evita que números, precios y símbolos de moneda se lean en inglés.
+    """
+    # 1. Precios con símbolo de moneda: $1,500.99 → "1500 con 99 dólares"
+    def fmt_price(m):
+        entero = m.group(1).replace(",", "")
+        centavos = m.group(2)
+        if centavos:
+            return f"{entero} con {centavos} dólares"
+        return f"{entero} dólares"
+    text = re.sub(r"\$\s*([\d,]+)(?:\.(\d{1,2}))?", fmt_price, text)
+
+    # 2. Separadores de miles sin símbolo: 1,500 → 1500
+    text = re.sub(r"(\d{1,3}(?:,\d{3})+)", lambda m: m.group(0).replace(",", ""), text)
+
+    # 3. Decimales anglosajones: 15.99 → 15 coma 99
+    text = re.sub(r"\b(\d+)\.(\d+)\b", r"\1 coma \2", text)
+
+    # 4. Porcentajes: 25% → 25 por ciento
+    text = re.sub(r"(\d+)\s*%", r"\1 por ciento", text)
+
+    return text
+
+
 def _synthesize_gtts_sync(text: str) -> bytes:
     """Google TTS via gTTS — sincrono, llamar en executor.
     Retorna MP3 bytes. Sin timepoints (TalkingHead usa analisis de texto para lipsync).
@@ -137,6 +162,7 @@ def _synthesize_gtts_sync(text: str) -> bytes:
     from gtts import gTTS
     plain = re.sub(r"<[^>]+>", " ", text)
     plain = re.sub(r"\s+", " ", plain).strip()
+    plain = _normalize_spanish_numbers(plain)
     tts = gTTS(text=plain, lang="es", slow=False)
     buf = io.BytesIO()
     tts.write_to_fp(buf)

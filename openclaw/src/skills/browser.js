@@ -1,88 +1,76 @@
 /**
  * Skill: browser
- * Investiga productos usando compound-beta (busqueda web integrada de Groq).
- * No necesita Playwright ni Chrome — compound-beta navega por cuenta propia.
+ * Investiga productos usando el microservicio Product Hunter (scraping real).
+ * Antes usaba compound-beta (Groq) pero fallaba con 413 Request Entity Too Large.
  *
  * Uso: searchProduct(query)
  *   query: URL directa ("https://www.amazon.com/...") o termino ("auriculares bluetooth")
- * Retorna: objeto con name, price, image, features, rating, store, url
+ * Retorna: objeto con name, price, image, features, rating, store, url, found
  */
 
 'use strict';
 
-const { researchCompletion } = require('../router');
+const http = require('http');
 
-const SYSTEM_PROMPT = `Eres un asistente especializado en investigar productos de importacion.
-Tu trabajo: buscar el producto indicado en tiendas online (Amazon, Alibaba, 1688, Apple) y extraer datos clave.
-
-Fuentes prioritarias por tipo de producto:
-- Tecnologia Apple (iPhone, iPad, Mac, AirPods, Apple Watch): buscar en apple.com/pe/ o apple.com/cl/ o apple.com/
-- Electronica general: Amazon.com o Amazon.es
-- Mayoristas / fabrica: Alibaba.com o 1688.com
-- Si la query es una URL directa: usar esa URL
-
-Responde SIEMPRE con un JSON valido y nada mas. Estructura exacta:
-{
-  "name": "Nombre completo del producto",
-  "price": "Precio principal con moneda (ej: $29.99 USD o S/ 450 PEN)",
-  "price_usd": 29.99,
-  "weight_kg": 0.5,
-  "image": "URL de la imagen principal del producto (si disponible)",
-  "features": [
-    "Caracteristica destacada 1",
-    "Caracteristica destacada 2",
-    "Caracteristica destacada 3"
-  ],
-  "rating": "4.5/5 (1,234 reseñas)",
-  "store": "amazon | alibaba | 1688 | apple | otro",
-  "url": "URL final del producto",
-  "found": true
-}
-
-Si no encuentras el producto responde:
-{"found": false, "error": "motivo breve"}
-
-Reglas importantes:
-- Precios: incluir siempre la moneda. Si el precio esta en CNY (yuan chino), convertir a USD tambien.
-- weight_kg: estimar el peso del producto si no esta disponible (ej: iPhone ~0.2kg, laptop ~1.5kg).
-- Features: maximo 5 caracteristicas, breves y utiles para el comprador.
-- No inventar datos: si un campo no esta disponible, usar null.`;
+const HUNTER_HOST = process.env.PRODUCT_HUNTER_HOST || 'product-hunter';
+const HUNTER_PORT = parseInt(process.env.PRODUCT_HUNTER_PORT || '5001', 10);
 
 /**
- * Busca informacion de un producto usando compound-beta con web search.
- * @param {string} query - URL del producto o termino de busqueda
+ * Llama al Product Hunter microservice y retorna el primer resultado.
+ * @param {string} query - Termino de busqueda o URL
  * @returns {Promise<object>} Datos del producto o {found: false, error: string}
  */
 async function searchProduct(query) {
-  console.log(`[Browser] Buscando producto: ${query}`);
+  console.log(`[Browser] Buscando producto via Product Hunter: ${query}`);
 
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    {
-      role: 'user',
-      content: `Busca y extrae informacion de este producto: ${query}\n\nResponde SOLO con el JSON, sin texto adicional.`,
-    },
-  ];
+  return new Promise((resolve) => {
+    const encoded = encodeURIComponent(query);
+    const path    = `/search?q=${encoded}&source=auto&limit=3`;
 
-  try {
-    const raw = await researchCompletion(messages, { temperature: 0.2 });
-    console.log(`[Browser] Respuesta raw (${raw.length} chars)`);
+    const options = {
+      hostname: HUNTER_HOST,
+      port:     HUNTER_PORT,
+      path,
+      method:   'GET',
+    };
 
-    // Extraer JSON de la respuesta (puede venir con texto extra o bloques markdown)
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.warn('[Browser] No se encontro JSON en la respuesta');
-      return { found: false, error: 'No se pudo extraer informacion del producto' };
-    }
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json    = JSON.parse(data);
+          const results = json.results || [];
 
-    const result = JSON.parse(jsonMatch[0]);
-    console.log(`[Browser] Producto encontrado: ${result.name || 'desconocido'} @ ${result.price || '?'}`);
-    return result;
+          if (!results.length) {
+            console.warn('[Browser] Producto no encontrado en Product Hunter');
+            resolve({ found: false, error: 'No se encontraron resultados' });
+            return;
+          }
 
-  } catch (err) {
-    console.error('[Browser] Error buscando producto:', err.message);
-    return { found: false, error: err.message };
-  }
+          const product = results[0];
+          console.log(`[Browser] Producto encontrado: ${product.name} @ ${product.price}`);
+          resolve({ ...product, found: true });
+
+        } catch (err) {
+          console.error('[Browser] Error parseando respuesta:', err.message);
+          resolve({ found: false, error: err.message });
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error('[Browser] Error conectando a Product Hunter:', err.message);
+      resolve({ found: false, error: err.message });
+    });
+
+    req.setTimeout(10000, () => {
+      req.destroy();
+      resolve({ found: false, error: 'Timeout buscando producto' });
+    });
+
+    req.end();
+  });
 }
 
 module.exports = { searchProduct };

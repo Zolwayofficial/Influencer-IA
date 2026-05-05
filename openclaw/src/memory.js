@@ -23,7 +23,7 @@ const DEFAULT_USER = 'influencer';
 // ---------------------------------------------------------------------------
 // HTTP helper
 // ---------------------------------------------------------------------------
-function _post(path, body) {
+function _post(path, body, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const data    = JSON.stringify(body);
     const url     = new URL(path, MEM0_BASE);
@@ -48,7 +48,7 @@ function _post(path, body) {
       });
     });
     req.on('error', reject);
-    req.setTimeout(5000, () => { req.destroy(); reject(new Error('mem0 timeout')); });
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('mem0 timeout')); });
     req.write(data);
     req.end();
   });
@@ -67,12 +67,8 @@ function _post(path, body) {
  * @param {object} metadata - Metadatos opcionales (plataforma, timestamp, etc.)
  */
 async function addMemory(text, userId = DEFAULT_USER, metadata = {}) {
-  try {
-    await _post('/memories/add', { text, user_id: userId, metadata });
-  } catch (err) {
-    // No fallar si mem0 no esta disponible — la memoria es best-effort
-    console.warn('[Memory] No se pudo guardar recuerdo:', err.message);
-  }
+  // 300s: mem0 hace dedup con Groq+Qdrant, tarda 1-3min cuando hay muchas memorias
+  await _post('/memories/add', { text, user_id: userId, metadata }, 300000);
 }
 
 /**
@@ -85,7 +81,8 @@ async function addMemory(text, userId = DEFAULT_USER, metadata = {}) {
  */
 async function searchMemory(query, userId = DEFAULT_USER, limit = 5) {
   try {
-    const res = await _post('/memories/search', { query, user_id: userId, limit });
+    // 5s: si mem0 es lento en chat, fallback silencioso
+    const res = await _post('/memories/search', { query, user_id: userId, limit }, 5000);
     return res.memories || [];
   } catch (err) {
     console.warn('[Memory] No se pudo buscar en memoria:', err.message);

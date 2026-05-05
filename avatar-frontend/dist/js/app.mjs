@@ -1,5 +1,19 @@
 import { TalkingHead } from 'talkinghead';
 
+// Force preserveDrawingBuffer:true on every WebGL context created on this page.
+// Without it, Chrome may clear the WebGL back-buffer before drawImage() copies it
+// to the 2D mirror canvas, producing a blank frame.  Must run before TalkingHead
+// constructs its Three.js WebGLRenderer.
+{
+  const _origGetCtx = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+    if (type === 'webgl' || type === 'webgl2') {
+      attrs = Object.assign({}, attrs, { preserveDrawingBuffer: true });
+    }
+    return _origGetCtx.call(this, type, attrs);
+  };
+}
+
 // Emociones → gradientes CSS de fondo (fallback sin SD)
 const EMOTION_BACKGROUNDS = {
   neutral:   'linear-gradient(135deg, #0d0d1a 0%, #111127 40%, #0a0a18 100%)',
@@ -69,6 +83,7 @@ class InfluencerApp {
     this._screenStream     = null;
     this._captureInterval  = null;
     this._autonomousMode   = false;
+    this._screenshotTimeout = null;
 
     document.getElementById('screenshare-btn').addEventListener('click', () => this._startScreenShare());
   }
@@ -81,7 +96,7 @@ class InfluencerApp {
 
       this.head = new TalkingHead(avatarEl, {
         ttsEndpoint: '/tts/api/tts',   // F5-TTS via nginx proxy
-        lipsyncModules: ['es', 'en'],  // español primero
+        lipsyncModules: ['en'],  // lipsync-es.mjs no existe en CDN @1.7 → solo 'en'
         cameraView: 'upper',
         cameraRotateEnable: false,
         cameraZoomEnable: false,
@@ -103,6 +118,7 @@ class InfluencerApp {
         this.setStatus('connected', 'Avatar listo');
       this.applyEmotionEffects('neutral');
       this._setupAudioUnlock();
+      this._setupWebGLMirror();
 
     } catch (err) {
       console.error('Error inicializando avatar:', err);
@@ -358,6 +374,54 @@ class InfluencerApp {
         this._stopScreenShare();
         break;
 
+      case 'show_screenshot': {
+        if (!msg.image) break;
+        // new Image() es universal: funciona en Chrome, CEF (TikTok), Safari.
+        // fetch(data:...) puede fallar silenciosamente en browsers embebidos.
+        const _img = new Image();
+        _img.onload = () => {
+          if (!document.body.classList.contains('screenshare-presentation') &&
+              !document.body.classList.contains('screenshare-only')) {
+            document.body.classList.add('screenshare-presentation');
+          }
+          this.screenCanvas.style.cssText = '';
+          this.screenCanvas.width  = window.innerWidth;
+          this.screenCanvas.height = window.innerHeight;
+          const cw = this.screenCanvas.width, ch = this.screenCanvas.height;
+          const scale = Math.min(cw / _img.naturalWidth, ch / _img.naturalHeight);
+          const w = _img.naturalWidth * scale, h = _img.naturalHeight * scale;
+          const x = (cw - w) / 2, y = (ch - h) / 2;
+          this._slideImg = _img;
+          this._slideDrawParams = { x, y, w, h, cw, ch };
+          // Cancelar siempre el loop anterior y reiniciar — fuerza repaint en CEF
+          if (this._slideRaf) { cancelAnimationFrame(this._slideRaf); this._slideRaf = null; }
+          const loop = () => {
+            if (!this._slideImg) return;
+            const { x, y, w, h, cw, ch } = this._slideDrawParams;
+            const ctx = this.screenCanvas.getContext('2d');
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(this._slideImg, x, y, w, h);
+            this._slideRaf = requestAnimationFrame(loop);
+          };
+          this._slideRaf = requestAnimationFrame(loop);
+          console.log('[Slide] mostrado:', _img.naturalWidth + 'x' + _img.naturalHeight);
+        };
+        _img.onerror = e => console.warn('[screenshot] error cargando imagen', e);
+        _img.src = msg.image;
+        if (this._screenshotTimeout) clearTimeout(this._screenshotTimeout);
+        const dur = (msg.duration || 20) * 1000;
+        this._screenshotTimeout = setTimeout(() => {
+          this._screenshotTimeout = null;
+          this._stopScreenShare();
+        }, dur);
+        break;
+      }
+
+      case 'capture_and_narrate':
+        this._captureAndNarrate();
+        break;
+
       case 'set_autonomous':
         this._autonomousMode = !!msg.enabled;
         if (this._autonomousMode && this._screenStream) {
@@ -557,24 +621,15 @@ class InfluencerApp {
         audio: false,
       });
 
-      // Apply class + force canvas visible via inline style (bypasses CSS specificity issues)
+      // Activar modo presentación — CSS (screenshare-presentation) maneja el layout PiP
       if (!document.body.classList.contains('screenshare-presentation') &&
           !document.body.classList.contains('screenshare-only')) {
         document.body.classList.add('screenshare-presentation');
       }
-      Object.assign(this.screenCanvas.style, {
-        display: 'block',
-        position: 'fixed',
-        top: '0',
-        left: '210px',
-        width: 'calc(100vw - 210px)',
-        height: '100vh',
-        zIndex: '3',
-        background: '#000',
-      });
+      this.screenCanvas.style.cssText = '';
 
-      // Buffer at viewport size — CSS handles visual scaling
-      this.screenCanvas.width  = window.innerWidth - 210;
+      // Buffer full viewport — CSS maneja la posición y z-index
+      this.screenCanvas.width  = window.innerWidth;
       this.screenCanvas.height = window.innerHeight;
       const ctx = this.screenCanvas.getContext('2d');
       ctx.fillStyle = '#000';
@@ -614,9 +669,28 @@ class InfluencerApp {
       }
 
       this._screenStream.getVideoTracks()[0].addEventListener('ended', () => this._stopScreenShare());
+
     } catch (err) {
       console.warn('Screen share cancelado o error:', err);
     }
+  }
+
+  _captureAndNarrate() {
+    const canvas = this.screenCanvas;
+    if (!canvas || !canvas.width || !canvas.height) return;
+    try {
+      const off = document.createElement('canvas');
+      const scale = Math.min(1, 1280 / canvas.width);
+      off.width  = Math.round(canvas.width  * scale);
+      off.height = Math.round(canvas.height * scale);
+      off.getContext('2d').drawImage(canvas, 0, 0, off.width, off.height);
+      const jpeg = off.toDataURL('image/jpeg', 0.85);
+      fetch('/agent/narrate-frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: jpeg }),
+      }).catch(e => console.warn('[Narrate] POST error:', e));
+    } catch(e) { console.warn('[Narrate] capture error:', e); }
   }
 
   _stopScreenShare() {
@@ -632,6 +706,11 @@ class InfluencerApp {
       this._screenStream.getTracks().forEach(t => t.stop());
       this._screenStream = null;
     }
+    // Detener loop de redibujado de slides
+    if (this._slideRaf) { cancelAnimationFrame(this._slideRaf); this._slideRaf = null; }
+    if (this._slideBitmap) { this._slideBitmap.close(); this._slideBitmap = null; }
+    this._slideImg = null;
+    this._slideDrawParams = null;
     const ctx = this.screenCanvas.getContext('2d');
     if (ctx) ctx.clearRect(0, 0, this.screenCanvas.width, this.screenCanvas.height);
     this.screenCanvas.style.cssText = '';
@@ -662,6 +741,77 @@ class InfluencerApp {
     if (this._captureInterval) {
       clearInterval(this._captureInterval);
       this._captureInterval = null;
+    }
+  }
+
+  // --- bitmaprenderer mirror: copia cada frame WebGL→ImageBitmap→canvas visible ---
+  // Chrome (ANGLE) promueve canvases WebGL a DirectX swap chains que DirectComposition
+  // convierte en hardware MPO overlay planes. TikTok Live Studio usa WGC para Window
+  // Capture, que lee el DOM compositor y NO ve los planos MPO → frame congelado.
+  //
+  // Solución definitiva (investigación 2026-04-25):
+  // 1. bitmaprenderer context: Chrome nunca promueve superficies ImageBitmap a MPO.
+  // 2. createImageBitmap(webglCanvas): copia el frame del WebGL canvas (preserveDrawingBuffer
+  //    asegura que el buffer no se haya borrado antes de esta llamada).
+  // 3. transferFromImageBitmap: vuelca el bitmap al canvas visible sin crear contexto WebGL.
+  //
+  // Solución de respaldo (Solution B): isolation:isolate + mix-blend-mode:normal en CSS
+  // obliga a Chrome a componer el grupo WebGL por software antes de enviarlo al DWM.
+  _setupWebGLMirror() {
+    const webglCanvas = this.avatarEl.querySelector('canvas');
+    if (!webglCanvas) { console.warn('[Mirror] WebGL canvas not found'); return; }
+
+    const mirror = document.getElementById('avatar-mirror');
+    if (!mirror) { console.warn('[Mirror] #avatar-mirror not found'); return; }
+
+    // Solution B: aplicar mix-blend-mode al canvas WebGL directamente para forzar
+    // composición por software (evita que Chrome lo ponga en hardware MPO overlay).
+    webglCanvas.style.mixBlendMode = 'normal';
+    webglCanvas.style.willChange   = 'transform';
+    webglCanvas.style.transform    = 'translateZ(0)';
+
+    // Solution A (principal): bitmaprenderer — superficie que Chrome nunca pone en MPO
+    const bitmapCtx = mirror.getContext('bitmaprenderer');
+
+    const syncSize = () => {
+      const w = webglCanvas.width  || window.innerWidth;
+      const h = webglCanvas.height || window.innerHeight;
+      if (mirror.width !== w || mirror.height !== h) {
+        mirror.width  = w;
+        mirror.height = h;
+      }
+    };
+    new ResizeObserver(syncSize).observe(webglCanvas);
+    syncSize();
+
+    if (bitmapCtx) {
+      // bitmaprenderer path: createImageBitmap → transferFromImageBitmap
+      // Chrome trata esta superficie como bitmap plano, jamás como swap chain DirectX.
+      let _pending = false;
+      const loop = () => {
+        this._mirrorRaf = requestAnimationFrame(loop);
+        if (_pending || !webglCanvas.width) return;
+        _pending = true;
+        createImageBitmap(webglCanvas)
+          .then(bitmap => { bitmapCtx.transferFromImageBitmap(bitmap); })
+          .catch(() => {})
+          .finally(() => { _pending = false; });
+      };
+      this._mirrorRaf = requestAnimationFrame(loop);
+      console.log('[Mirror] bitmaprenderer activo (Solution A) — TikTok MPO fix');
+    } else {
+      // Fallback: 2d canvas con drawImage
+      console.warn('[Mirror] bitmaprenderer no disponible, usando 2d fallback');
+      const ctx = mirror.getContext('2d');
+      const loop = () => {
+        syncSize();
+        try {
+          ctx.clearRect(0, 0, mirror.width, mirror.height);
+          ctx.drawImage(webglCanvas, 0, 0, mirror.width, mirror.height);
+        } catch (_) {}
+        this._mirrorRaf = requestAnimationFrame(loop);
+      };
+      this._mirrorRaf = requestAnimationFrame(loop);
     }
   }
 

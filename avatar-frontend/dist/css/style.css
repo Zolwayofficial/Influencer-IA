@@ -66,6 +66,31 @@ html, body {
   left: 0;
   z-index: 2;
   transition: filter 1.0s ease-in-out;
+  /* isolation:isolate (Solution B): obliga a Chrome a componer el grupo WebGL por
+     software antes de enviarlo al DWM. Un "isolated group" no puede delegar sus
+     capas a hardware MPO overlay planes, haciendo el frame visible para TikTok WGC. */
+  isolation: isolate;
+}
+
+/* Solution B: mix-blend-mode explicito en el canvas interno de TalkingHead/Three.js.
+   Con el padre isolation:isolate, Chrome no puede usar MPO para este canvas.
+   mix-blend-mode:normal es visualmente identico al comportamiento por defecto. */
+#avatar canvas {
+  mix-blend-mode: normal;
+  will-change: transform;
+}
+
+/* Canvas bitmaprenderer mirror: Solution A — superficie ImageBitmap que Chrome nunca
+   promueve a MPO. Z-index:3 (encima del avatar) asegura que TikTok lo vea primero. */
+#avatar-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+  display: block;
 }
 
 /* Filtros por emocion — aplicados por JS via clase en #avatar */
@@ -404,6 +429,18 @@ html, body {
   box-shadow: 0 0 6px rgba(0, 230, 118, 0.7);
 }
 
+/* --- Capture keepalive: prevents TikTok Live Studio from freezing WebGL capture ---
+   Animated element above the avatar forces Chrome to composite all layers (including
+   the Three.js WebGL canvas) through the window compositor on every frame instead of
+   leaving the WebGL canvas on a hardware MPO overlay plane invisible to BitBlt capture */
+#capture-keepalive {
+  animation: _ka 0.4s linear alternate infinite;
+}
+@keyframes _ka {
+  from { opacity: 0.0010; }
+  to   { opacity: 0.0012; }
+}
+
 /* --- Animations --- */
 @keyframes slideUp {
   from { transform: translateY(30px); opacity: 0; }
@@ -579,6 +616,7 @@ body.spotlight #product-qr-label        { font-size: 15px; }
   z-index: 3;
   object-fit: contain;
   background: #000;
+  filter: contrast(1.0001); /* prevents Chrome MPO overlay — TikTok BitBlt can't capture MPO planes */
 }
 
 /* Prompt de activación — aparece al solicitar screen share */
@@ -614,26 +652,39 @@ body.spotlight #product-qr-label        { font-size: 15px; }
   box-shadow: 0 12px 48px rgba(99, 102, 241, 0.65);
 }
 
-/* MODO PRESENTACIÓN — avatar pequeño esquina, pantalla al frente */
+/* MODO PRESENTACIÓN — pantalla completa, avatar PiP en esquina inferior-izquierda */
 body.screenshare-presentation #screen-canvas {
   display: block;
   position: fixed;
   top: 0;
-  left: 210px;
-  width: calc(100vw - 210px);
+  left: 0;
+  width: 100vw;
   height: 100vh;
+  z-index: 5;
 }
 
 body.screenshare-presentation #avatar {
-  width: 190px;
-  height: 190px;
+  width: 200px;
+  height: 200px;
+  position: fixed;
   top: auto;
-  bottom: 20px;
-  left: 10px;
+  bottom: 24px;
+  left: 24px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.25);
   overflow: hidden;
+  z-index: 10;
   transition: width 0.4s ease, height 0.4s ease;
+}
+
+body.screenshare-presentation #avatar-mirror {
+  display: none;
+}
+
+body.screenshare-presentation #ai-background,
+body.screenshare-presentation #ambient-fx,
+body.screenshare-presentation #bg-video {
+  display: none;
 }
 
 /* MODO SOLO PANTALLA — avatar oculto */
@@ -649,17 +700,17 @@ body.screenshare-only #avatar {
   display: none;
 }
 
-/* Móvil — presentación: avatar arriba-izq pequeño, pantalla debajo */
+/* Móvil — presentación: PiP más pequeño */
 @media (max-width: 640px) {
   body.screenshare-presentation #avatar {
-    width: 80px;
-    height: 80px;
-    bottom: 10px;
-    left: 10px;
+    width: 90px;
+    height: 90px;
+    bottom: 12px;
+    left: 12px;
   }
 
   body.screenshare-presentation #screen-canvas {
-    left: 100px;
-    width: calc(100vw - 100px);
+    left: 0;
+    width: 100vw;
   }
 }
