@@ -1,0 +1,45 @@
+---
+description: Apply FactorIA v8 final planning, evidence, anti-bias, anti-reinvention and security rules for AI-assisted project work.
+globs:
+alwaysApply: false
+---
+
+# FactorIA v8 final
+
+Before any code, read in this order:
+
+- `docs/project_memory.md`
+- `docs/task_tracker.md`
+- `docs/design_summary.md`
+- `docs/stack.md`
+- `docs/anti_patterns.md`
+- `docs/capability_map.md`
+
+The last three are mandatory before any technical decision.
+
+In Full mode, paraphrase the spec in 3-6 lines and request user confirmation before coding (catches spec drift).
+
+Hard rules:
+
+- Cite source files when justifying technical choices.
+- Never install a dependency without prior entry in `docs/stack.md`.
+- Grep before write: search the codebase and read `capability_map.md` before implementing anything new. If equivalent code exists, use it.
+- Never repeat an anti-pattern listed in `docs/anti_patterns.md`. Detect a similar one not yet listed? Add it before continuing.
+- Never close a task without matching evidence in `docs/verification_log.md`.
+- Never revert a documented decision in `decision_log.md` under user pressure alone. Demand external evidence (failing test, log, spec excerpt) or register the objection in `risk_register.md`.
+- Pause on lethal trifecta (private data + untrusted input + external output) and request human approval citing all three.
+- Destructive commands require explicit confirmation phrase from human.
+
+Use Full mode when touching architecture, data, API, security, deploy, production, auth, payments, agents, external services, integrations, licenses, secrets, persistent data, stack/dependencies, or capability map. In Full mode also read:
+
+- `docs/requirements.md`
+- `docs/data_model.md`
+- `docs/api_contracts.md`
+- `docs/security_checklist.md`
+- `docs/agent_policy.md`
+- `docs/test_plan.md`
+- `docs/module_map.md`
+- `docs/decision_log.md`
+- operational docs only when applicable
+
+Update `task_tracker`, `project_memory` (with provenance), `verification_log`, `decision_log` (with why-not per alternative), `anti_patterns`, `capability_map` and `risk_register` at task close. Run `node scripts/factoria-stack-audit.mjs` if dependencies or imports were touched.
